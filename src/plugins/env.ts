@@ -18,8 +18,9 @@ const envSchema = z.object({
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
-  console.error("Erro ao validar variáveis de ambiente:");
+  console.error("=== ERRO: Variáveis de ambiente inválidas ===");
   console.error(parsed.error.format());
+  console.error("Verifique se SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY estão configuradas no Railway.");
   process.exit(1);
 }
 
