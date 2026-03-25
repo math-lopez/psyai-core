@@ -15,7 +15,7 @@ const accessRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   fastify.addHook("preHandler", fastify.authenticate);
 
   fastify.get(
-    "/patients/:patientId/access",
+    "/v1/patients/:patientId/access",
     {
       schema: {
         tags: ["Access"],
@@ -40,7 +40,7 @@ const accessRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   );
 
   fastify.post(
-    "/patients/:patientId/access/invite",
+    "/v1/patients/:patientId/access/invite",
     {
       schema: {
         tags: ["Access"],
@@ -65,7 +65,7 @@ const accessRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   );
 
   fastify.patch(
-    "/patients/:patientId/access/status",
+    "/v1/patients/:patientId/access/status",
     {
       schema: {
         tags: ["Access"],
@@ -96,7 +96,7 @@ const accessRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   );
 
   fastify.post(
-    "/patients/:patientId/access/revoke",
+    "/v1/patients/:patientId/access/revoke",
     {
       schema: {
         tags: ["Access"],
@@ -121,7 +121,7 @@ const accessRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   );
 
   fastify.delete(
-    "/patients/:patientId/access",
+    "/v1/patients/:patientId/access",
     {
       schema: {
         tags: ["Access"],

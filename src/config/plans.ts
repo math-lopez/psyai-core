@@ -1,19 +1,23 @@
-export type SubscriptionTier = 'free' | 'basic' | 'pro';
+export type SubscriptionTier = 'free' | 'basic' | 'pro' | 'ultra';
 
 export const PLAN_LIMITS: Record<
   SubscriptionTier,
   { name: string; maxPatients: number }
 > = {
   free: {
-    name: 'Free',
-    maxPatients: 5,
+    name: 'Gratuito',
+    maxPatients: 10,
   },
   basic: {
-    name: 'Basic',
-    maxPatients: 50,
+    name: 'Básico',
+    maxPatients: 100,
   },
   pro: {
-    name: 'Pro',
-    maxPatients: 999999,
+    name: 'Profissional',
+    maxPatients: 1000,
+  },
+  ultra: {
+    name: 'Ultra',
+    maxPatients: Infinity,
   },
 };

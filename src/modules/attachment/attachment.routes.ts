@@ -20,7 +20,7 @@ const attachmentRoutes: FastifyPluginAsync = async (
   fastify.addHook("preHandler", fastify.authenticate);
 
   fastify.get(
-    "/patients/:patientId/attachments",
+    "/v1/patients/:patientId/attachments",
     {
       schema: {
         tags: ["Attachments"],
@@ -42,7 +42,7 @@ const attachmentRoutes: FastifyPluginAsync = async (
   );
 
   fastify.get(
-    "/patients/:patientId/attachments/:attachmentId",
+    "/v1/patients/:patientId/attachments/:attachmentId",
     {
       schema: {
         tags: ["Attachments"],
@@ -72,7 +72,7 @@ const attachmentRoutes: FastifyPluginAsync = async (
   );
 
   fastify.post(
-    "/patients/:patientId/attachments",
+    "/v1/patients/:patientId/attachments",
     {
       schema: {
         tags: ["Attachments"],
@@ -115,7 +115,7 @@ const attachmentRoutes: FastifyPluginAsync = async (
   );
 
   fastify.delete(
-    "/patients/:patientId/attachments/:attachmentId",
+    "/v1/patients/:patientId/attachments/:attachmentId",
     {
       schema: {
         tags: ["Attachments"],
@@ -147,7 +147,7 @@ const attachmentRoutes: FastifyPluginAsync = async (
   );
 
   fastify.get(
-    "/patients/:patientId/attachments/:attachmentId/download-url",
+    "/v1/patients/:patientId/attachments/:attachmentId/download-url",
     {
       schema: {
         tags: ["Attachments"],

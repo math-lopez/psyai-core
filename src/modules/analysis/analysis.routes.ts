@@ -12,7 +12,7 @@ const analysisRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   fastify.addHook("preHandler", fastify.authenticate);
 
   fastify.get(
-    "/patients/:patientId/analysis/latest",
+    "/v1/patients/:patientId/analysis/latest",
     {
       schema: {
         tags: ["Analysis"],
@@ -37,7 +37,7 @@ const analysisRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   );
 
   fastify.post(
-    "/patients/:patientId/analysis/request",
+    "/v1/patients/:patientId/analysis/request",
     {
       schema: {
         tags: ["Analysis"],
