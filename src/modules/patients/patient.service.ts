@@ -63,18 +63,12 @@ export class PatientService {
       throw this.app.httpErrors.notFound('Paciente não encontrado');
     }
 
-    const { data, error } = await this.app.supabase.functions.invoke('delete-patient-complete', {
-      body: {
-        patientId: id,
-      },
-      headers: {
-        'x-internal-source': 'fastify-api',
-      },
-    });
-
-    if (error || (data && !data.success)) {
+    try {
+      await this.repository.deletePatientCascade(id);
+    } catch (err) {
+      this.app.log.error(err);
       throw this.app.httpErrors.internalServerError(
-        data?.error || 'Erro ao realizar a exclusão completa do paciente.'
+        'Erro ao realizar a exclusão completa do paciente.'
       );
     }
 
