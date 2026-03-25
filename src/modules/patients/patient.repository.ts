@@ -144,16 +144,28 @@ export class PatientRepository {
     // Delete treatment plans
     await this.safeDelete('treatment_plans', 'patient_id', patientId);
 
+    // Delete diary log attachments (before logs, since attachments reference logs via FK)
+    const { data: logs, error: logsQueryError } = await this.supabase
+      .from('patient_logs')
+      .select('id')
+      .eq('patient_id', patientId);
+
+    if (logsQueryError) {
+      throw new Error(`Falha ao buscar patient_logs do paciente: ${logsQueryError.message}`);
+    }
+
+    if (logs && logs.length > 0) {
+      const logIds = logs.map((l: { id: string }) => l.id);
+      await this.safeDelete('patient_log_attachments', 'log_id', logIds);
+    }
+
     // Delete patient diary logs
     await this.safeDelete('patient_logs', 'patient_id', patientId);
 
     // Delete patient diary prompts
     await this.safeDelete('patient_log_prompts', 'patient_id', patientId);
 
-    // Delete patient AI analyses
-    await this.safeDelete('patient_ai_analyses', 'patient_id', patientId);
-
-    // Finally delete the patient
+    // Finally delete the patient (patient_ai_analyses table does not exist in DB — removed)
     await this.safeDelete('patients', 'id', patientId);
   }
 }
