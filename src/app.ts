@@ -25,12 +25,29 @@ export async function buildApp() {
   await app.register(cors, {
     origin: true,
     credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    strictPreflight: false,
   });
   await app.register(multipart, {
     limits: {
       fileSize: 25 * 1024 * 1024,
       files: 1,
     },
+  });
+
+  // Allow empty JSON body (e.g. POST /v1/sessions/:id/finish with no payload)
+  app.removeContentTypeParser('application/json');
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
+    if (!body || (typeof body === 'string' && body.trim() === '')) {
+      done(null, undefined);
+      return;
+    }
+    try {
+      done(null, JSON.parse(body as string));
+    } catch (err) {
+      done(err as Error, undefined);
+    }
   });
 
   await app.register(supabasePlugin);
@@ -45,7 +62,7 @@ export async function buildApp() {
   await app.register(analysisRoutes);
   await app.register(attachmentRoutes);
   await app.register(diaryRoutes);
-await app.register(treatmentRoutes);
+  await app.register(treatmentRoutes);
 
   app.setErrorHandler((error, request, reply) => {
     request.log.error(error);
