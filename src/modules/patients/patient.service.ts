@@ -67,9 +67,9 @@ export class PatientService {
       await this.repository.deletePatientCascade(id);
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
-      this.app.log.error({ err, patientId: id }, `deletePatientCascade failed: ${detail}`);
+      this.app.log.error({ err, patientId: id }, `Falha no deletePatientCascade: ${detail}`);
       throw this.app.httpErrors.internalServerError(
-        'Erro ao realizar a exclusão completa do paciente.'
+        `Erro ao realizar a exclusão completa do paciente: ${detail}`
       );
     }
 
