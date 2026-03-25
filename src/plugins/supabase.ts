@@ -5,6 +5,7 @@ import { FastifyInstance } from 'fastify';
 declare module 'fastify' {
   interface FastifyInstance {
     supabase: SupabaseClient;
+    supabaseAdmin: SupabaseClient;
   }
 }
 
@@ -24,4 +25,5 @@ export default fp(async function supabasePlugin(app: FastifyInstance) {
   });
 
   app.decorate('supabase', supabase);
+  app.decorate('supabaseAdmin', supabase);
 });
