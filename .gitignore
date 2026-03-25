@@ -1,0 +1,69 @@
+# ========================
+# NODE
+# ========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ========================
+# BUILD / DIST
+# ========================
+dist/
+build/
+.out/
+.tmp/
+.cache/
+
+# ========================
+# TYPESCRIPT
+# ========================
+*.tsbuildinfo
+
+# ENV FILES
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# permite apenas o example
+!.env.example
+
+# ========================
+# LOGS
+# ========================
+logs/
+*.log
+
+# ========================
+# OS FILES
+# ========================
+.DS_Store
+Thumbs.db
+
+# ========================
+# IDE / EDITOR
+# ========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ========================
+# TEST
+# ========================
+coverage/
+
+# ========================
+# DOCKER (se usar depois)
+# ========================
+docker-compose.override.yml
+
+# ========================
+# MISC
+# ========================
+*.local
+*.pid
+*.seed
