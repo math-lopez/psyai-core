@@ -86,93 +86,70 @@ export class PatientRepository {
     return data;
   }
 
+  private async safeCascadeDelete(table: string, column: string, value: string | string[]) {
+    const query = this.supabase.from(table).delete();
+    const { error } = Array.isArray(value)
+      ? await query.in(column, value)
+      : await query.eq(column, value);
+
+    if (error) {
+      throw new Error(`Falha ao deletar '${table}' (${column}): ${error.message} [${error.code}]`);
+    }
+  }
+
   async deletePatientCascade(patientId: string) {
-    // Get all session IDs for this patient to delete AI analyses
+    // 1. Get session IDs for child-table cleanup
     const { data: sessions } = await this.supabase
       .from('sessions')
       .select('id')
       .eq('patient_id', patientId);
 
-    // Delete session AI analyses
     if (sessions && sessions.length > 0) {
       const sessionIds = sessions.map((s: { id: string }) => s.id);
-      const { error: aiError } = await this.supabase
-        .from('session_ai_analysis')
-        .delete()
-        .in('session_id', sessionIds);
-      if (aiError) throw aiError;
+      await this.safeCascadeDelete('session_ai_analysis', 'session_id', sessionIds);
     }
 
-    // Delete sessions
-    const { error: sessionsError } = await this.supabase
-      .from('sessions')
-      .delete()
-      .eq('patient_id', patientId);
-    if (sessionsError) throw sessionsError;
+    // 2. Delete sessions
+    await this.safeCascadeDelete('sessions', 'patient_id', patientId);
 
-    // Delete patient access
-    const { error: accessError } = await this.supabase
-      .from('patient_access')
-      .delete()
-      .eq('patient_id', patientId);
-    if (accessError) throw accessError;
+    // 3. Delete patient access
+    await this.safeCascadeDelete('patient_access', 'patient_id', patientId);
 
-    // Delete patient attachments
-    const { error: attachmentsError } = await this.supabase
-      .from('patient_attachments')
-      .delete()
-      .eq('patient_id', patientId);
-    if (attachmentsError) throw attachmentsError;
+    // 4. Delete patient attachments
+    await this.safeCascadeDelete('patient_attachments', 'patient_id', patientId);
 
-    // Get all treatment plan IDs to delete goals
+    // 5. Get treatment plan IDs for child-table cleanup
     const { data: plans } = await this.supabase
       .from('treatment_plans')
       .select('id')
       .eq('patient_id', patientId);
 
-    // Delete treatment goals
     if (plans && plans.length > 0) {
       const planIds = plans.map((p: { id: string }) => p.id);
-      const { error: goalsError } = await this.supabase
-        .from('treatment_goals')
-        .delete()
-        .in('treatment_plan_id', planIds);
-      if (goalsError) throw goalsError;
+      await this.safeCascadeDelete('treatment_goals', 'treatment_plan_id', planIds);
     }
 
-    // Delete treatment plans
-    const { error: plansError } = await this.supabase
-      .from('treatment_plans')
-      .delete()
-      .eq('patient_id', patientId);
-    if (plansError) throw plansError;
+    // 6. Delete treatment plans
+    await this.safeCascadeDelete('treatment_plans', 'patient_id', patientId);
 
-    // Delete patient diary logs
-    const { error: logsError } = await this.supabase
+    // 7. Delete diary log attachments (before logs, since attachments reference logs)
+    const { data: logs } = await this.supabase
       .from('patient_logs')
-      .delete()
+      .select('id')
       .eq('patient_id', patientId);
-    if (logsError) throw logsError;
 
-    // Delete patient diary prompts
-    const { error: promptsError } = await this.supabase
-      .from('patient_log_prompts')
-      .delete()
-      .eq('patient_id', patientId);
-    if (promptsError) throw promptsError;
+    if (logs && logs.length > 0) {
+      const logIds = logs.map((l: { id: string }) => l.id);
+      await this.safeCascadeDelete('patient_log_attachments', 'log_id', logIds);
+    }
 
-    // Delete patient AI analyses
-    const { error: analysesError } = await this.supabase
-      .from('patient_ai_analyses')
-      .delete()
-      .eq('patient_id', patientId);
-    if (analysesError) throw analysesError;
+    // 8. Delete patient diary logs
+    await this.safeCascadeDelete('patient_logs', 'patient_id', patientId);
 
-    // Finally delete the patient
-    const { error: patientError } = await this.supabase
-      .from('patients')
-      .delete()
-      .eq('id', patientId);
-    if (patientError) throw patientError;
+    // 9. Delete patient diary prompts
+    await this.safeCascadeDelete('patient_log_prompts', 'patient_id', patientId);
+
+    // 10. Finally delete the patient
+    await this.safeCascadeDelete('patients', 'id', patientId);
   }
 }
