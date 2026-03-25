@@ -86,93 +86,74 @@ export class PatientRepository {
     return data;
   }
 
+  private async safeDelete(table: string, column: string, value: string | string[]) {
+    const query = this.supabase.from(table).delete();
+    const result = Array.isArray(value)
+      ? await query.in(column, value)
+      : await query.eq(column, value);
+
+    if (result.error) {
+      throw new Error(
+        `Falha ao deletar de '${table}' (${column}=${Array.isArray(value) ? '[...]' : value}): ${result.error.message} [code: ${result.error.code}]`
+      );
+    }
+  }
+
   async deletePatientCascade(patientId: string) {
     // Get all session IDs for this patient to delete AI analyses
-    const { data: sessions } = await this.supabase
+    const { data: sessions, error: sessionsQueryError } = await this.supabase
       .from('sessions')
       .select('id')
       .eq('patient_id', patientId);
+
+    if (sessionsQueryError) {
+      throw new Error(`Falha ao buscar sessions do paciente: ${sessionsQueryError.message}`);
+    }
 
     // Delete session AI analyses
     if (sessions && sessions.length > 0) {
       const sessionIds = sessions.map((s: { id: string }) => s.id);
-      const { error: aiError } = await this.supabase
-        .from('session_ai_analysis')
-        .delete()
-        .in('session_id', sessionIds);
-      if (aiError) throw aiError;
+      await this.safeDelete('session_ai_analysis', 'session_id', sessionIds);
     }
 
     // Delete sessions
-    const { error: sessionsError } = await this.supabase
-      .from('sessions')
-      .delete()
-      .eq('patient_id', patientId);
-    if (sessionsError) throw sessionsError;
+    await this.safeDelete('sessions', 'patient_id', patientId);
 
     // Delete patient access
-    const { error: accessError } = await this.supabase
-      .from('patient_access')
-      .delete()
-      .eq('patient_id', patientId);
-    if (accessError) throw accessError;
+    await this.safeDelete('patient_access', 'patient_id', patientId);
 
     // Delete patient attachments
-    const { error: attachmentsError } = await this.supabase
-      .from('patient_attachments')
-      .delete()
-      .eq('patient_id', patientId);
-    if (attachmentsError) throw attachmentsError;
+    await this.safeDelete('patient_attachments', 'patient_id', patientId);
 
     // Get all treatment plan IDs to delete goals
-    const { data: plans } = await this.supabase
+    const { data: plans, error: plansQueryError } = await this.supabase
       .from('treatment_plans')
       .select('id')
       .eq('patient_id', patientId);
 
+    if (plansQueryError) {
+      throw new Error(`Falha ao buscar treatment_plans do paciente: ${plansQueryError.message}`);
+    }
+
     // Delete treatment goals
     if (plans && plans.length > 0) {
       const planIds = plans.map((p: { id: string }) => p.id);
-      const { error: goalsError } = await this.supabase
-        .from('treatment_goals')
-        .delete()
-        .in('treatment_plan_id', planIds);
-      if (goalsError) throw goalsError;
+      await this.safeDelete('treatment_goals', 'treatment_plan_id', planIds);
     }
 
     // Delete treatment plans
-    const { error: plansError } = await this.supabase
-      .from('treatment_plans')
-      .delete()
-      .eq('patient_id', patientId);
-    if (plansError) throw plansError;
+    await this.safeDelete('treatment_plans', 'patient_id', patientId);
 
     // Delete patient diary logs
-    const { error: logsError } = await this.supabase
-      .from('patient_logs')
-      .delete()
-      .eq('patient_id', patientId);
-    if (logsError) throw logsError;
+    await this.safeDelete('patient_logs', 'patient_id', patientId);
 
     // Delete patient diary prompts
-    const { error: promptsError } = await this.supabase
-      .from('patient_log_prompts')
-      .delete()
-      .eq('patient_id', patientId);
-    if (promptsError) throw promptsError;
+    await this.safeDelete('patient_log_prompts', 'patient_id', patientId);
 
     // Delete patient AI analyses
-    const { error: analysesError } = await this.supabase
-      .from('patient_ai_analyses')
-      .delete()
-      .eq('patient_id', patientId);
-    if (analysesError) throw analysesError;
+    await this.safeDelete('patient_ai_analyses', 'patient_id', patientId);
 
     // Finally delete the patient
-    const { error: patientError } = await this.supabase
-      .from('patients')
-      .delete()
-      .eq('id', patientId);
-    if (patientError) throw patientError;
+    await this.safeDelete('patients', 'id', patientId);
   }
 }
