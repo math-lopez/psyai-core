@@ -33,6 +33,10 @@ export class AnalysisRepository {
       .maybeSingle();
 
     if (error) {
+      // Table may not exist yet – treat as "no analysis available"
+      if (error.code === "PGRST205" || error.message?.includes("patient_ai_analyses")) {
+        return null;
+      }
       throw error;
     }
 
@@ -43,7 +47,7 @@ export class AnalysisRepository {
     patientId: string;
     psychologistId: string;
     now: string;
-  }): Promise<PatientAIAnalysis> {
+  }): Promise<PatientAIAnalysis | null> {
     const { data, error } = await this.supabase
       .from("patient_ai_analyses")
       .insert({
@@ -58,6 +62,10 @@ export class AnalysisRepository {
       .single();
 
     if (error) {
+      // Table may not exist yet
+      if (error.code === "PGRST205" || error.message?.includes("patient_ai_analyses")) {
+        return null;
+      }
       throw error;
     }
 
@@ -96,6 +104,10 @@ export class AnalysisRepository {
       .single();
 
     if (error) {
+      // Table may not exist yet
+      if (error.code === "PGRST205" || error.message?.includes("patient_ai_analyses")) {
+        return null;
+      }
       throw error;
     }
 

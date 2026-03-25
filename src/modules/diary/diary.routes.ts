@@ -33,6 +33,8 @@ export const diaryRoutes: FastifyPluginAsync = async (fastify) => {
   const repository = new DiaryRepository(fastify.supabase);
   const service = new DiaryService(fastify, repository);
 
+  fastify.addHook("preHandler", fastify.authenticate);
+
   fastify.get(
     "/v1/diary/me/context",
     { schema: getMyContextSchema },

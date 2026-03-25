@@ -29,6 +29,8 @@ export const treatmentRoutes: FastifyPluginAsync = async (fastify) => {
   const repository = new TreatmentRepository(fastify.supabase);
   const service = new TreatmentService(fastify, repository);
 
+  fastify.addHook("preHandler", fastify.authenticate);
+
   fastify.get<{ Params: { patientId: string } }>(
     "/v1/patients/:patientId/treatment/plans",
     { schema: listPlansSchema },
