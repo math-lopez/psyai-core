@@ -120,6 +120,33 @@ export const diaryRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
+  fastify.post<{ Params: { patientId: string }; Body: CreateMyLogInput }>(
+    "/v1/patients/:patientId/diary/logs",
+    async (request, reply) => {
+      const psychologistId = (request as typeof request & AuthenticatedRequest).authUser.id;
+      const data = await service.createPatientLog(psychologistId, request.params.patientId, request.body);
+      return reply.code(201).send({ message: "Log criado com sucesso.", data });
+    }
+  );
+
+  fastify.put<{ Params: { logId: string }; Body: UpdateMyLogInput }>(
+    "/v1/diary/logs/:logId",
+    async (request) => {
+      const psychologistId = (request as typeof request & AuthenticatedRequest).authUser.id;
+      const data = await service.updatePatientLog(psychologistId, request.params.logId, request.body);
+      return { message: "Log atualizado com sucesso.", data };
+    }
+  );
+
+  fastify.delete<{ Params: { logId: string } }>(
+    "/v1/diary/logs/:logId",
+    async (request) => {
+      const psychologistId = (request as typeof request & AuthenticatedRequest).authUser.id;
+      await service.deletePatientLog(psychologistId, request.params.logId);
+      return { message: "Log excluído com sucesso." };
+    }
+  );
+
   fastify.get<{ Params: { patientId: string } }>(
     "/v1/patients/:patientId/diary/logs",
     { schema: listPatientLogsSchema },

@@ -2,6 +2,8 @@ import Fastify from "fastify";
 import sensible from "@fastify/sensible";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
+import swagger from "@fastify/swagger";
+import swaggerUi from "@fastify/swagger-ui";
 
 import supabasePlugin from "./plugins/supabase";
 import authPlugin from "./plugins/auth";
@@ -15,10 +17,40 @@ import analysisRoutes from "./modules/analysis/analysis.routes";
 import attachmentRoutes from "./modules/attachment/attachment.routes";
 import { diaryRoutes } from "./modules/diary/diary.routes";
 import { treatmentRoutes } from "./modules/treatment/treatment.routes";
+import { featuresRoutes } from "./modules/features/features.routes";
 
 export async function buildApp() {
   const app = Fastify({
     logger: true,
+  });
+
+  await app.register(swagger, {
+    openapi: {
+      info: {
+        title: 'PsyAI Core API',
+        description: 'API do backend psyai-core — gestão de psicólogos, pacientes, sessões e IA.',
+        version: '1.0.0',
+      },
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+            description: 'Token JWT do Supabase Auth',
+          },
+        },
+      },
+      security: [{ bearerAuth: [] }],
+    },
+  });
+
+  await app.register(swaggerUi, {
+    routePrefix: '/docs',
+    uiConfig: {
+      docExpansion: 'list',
+      deepLinking: true,
+    },
   });
 
   await app.register(sensible);
@@ -63,6 +95,7 @@ export async function buildApp() {
   await app.register(attachmentRoutes);
   await app.register(diaryRoutes);
   await app.register(treatmentRoutes);
+  await app.register(featuresRoutes);
 
   app.setErrorHandler((error, request, reply) => {
     request.log.error(error);

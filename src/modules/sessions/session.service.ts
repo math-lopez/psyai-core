@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { SessionRepository } from './session.repository';
-import { CreateSessionInput, UpdateSessionInput } from './session.types';
+import { CreateSessionInput, CreateRecurrentSessionInput, UpdateSessionInput } from './session.types';
 
 function makeHttpError(statusCode: number, message: string) {
   const err = new Error(message) as Error & { statusCode?: number };
@@ -86,6 +86,60 @@ export class SessionService {
     }
 
     return this.repository.create(psychologistId, payload);
+  }
+
+  async listByPatient(patientId: string, psychologistId: string) {
+    const patientBelongs = await this.repository.patientBelongsToPsychologist(patientId, psychologistId);
+    if (!patientBelongs) {
+      throw makeHttpError(403, 'Paciente não pertence ao psicólogo autenticado');
+    }
+    return this.repository.listSessionsByPatient(patientId, psychologistId);
+  }
+
+  async cancelSession(id: string, psychologistId: string) {
+    const existing = await this.repository.findRawByIdAndPsychologist(id, psychologistId);
+    if (!existing) {
+      throw makeHttpError(404, 'Sessão não encontrada');
+    }
+    await this.repository.update(id, psychologistId, { processing_status: 'cancelled' as any });
+    return { success: true };
+  }
+
+  async createRecurrent(psychologistId: string, payload: CreateRecurrentSessionInput) {
+    const patientBelongs = await this.repository.patientBelongsToPsychologist(
+      payload.patient_id,
+      psychologistId
+    );
+
+    if (!patientBelongs) {
+      throw makeHttpError(403, 'Paciente não pertence ao psicólogo autenticado');
+    }
+
+    const { until_date, session_date, ...baseFields } = payload;
+
+    const rows = [];
+    let currentDate = new Date(session_date);
+    const limitDate = new Date(until_date);
+
+    if (isNaN(currentDate.getTime()) || isNaN(limitDate.getTime())) {
+      throw makeHttpError(400, 'Datas inválidas');
+    }
+
+    if (limitDate < currentDate) {
+      throw makeHttpError(400, 'until_date deve ser posterior a session_date');
+    }
+
+    while (currentDate <= limitDate) {
+      rows.push({
+        ...baseFields,
+        session_date: currentDate.toISOString(),
+        psychologist_id: psychologistId,
+        processing_status: 'draft',
+      });
+      currentDate = new Date(currentDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+    }
+
+    return this.repository.createMany(rows);
   }
 
   async update(id: string, psychologistId: string, payload: UpdateSessionInput) {

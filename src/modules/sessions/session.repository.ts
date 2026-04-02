@@ -1,6 +1,21 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { CreateSessionInput, UpdateSessionInput } from './session.types';
 
+interface SessionRow {
+  patient_id: string;
+  session_date: string;
+  psychologist_id: string;
+  processing_status: string;
+  duration_minutes?: number;
+  record_type?: string | null;
+  manual_notes?: string | null;
+  additional_notes?: string | null;
+  clinical_notes?: string | null;
+  interventions?: string | null;
+  session_summary_manual?: string | null;
+  next_steps?: string | null;
+}
+
 export class SessionRepository {
   constructor(private readonly supabase: SupabaseClient) {}
 
@@ -123,6 +138,28 @@ export class SessionRepository {
       .eq('psychologist_id', psychologistId);
 
     if (error) throw error;
+  }
+
+  async listSessionsByPatient(patientId: string, psychologistId: string) {
+    const { data, error } = await this.supabase
+      .from('sessions')
+      .select(`*, patient:patients(full_name)`)
+      .eq('patient_id', patientId)
+      .eq('psychologist_id', psychologistId)
+      .order('session_date', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  }
+
+  async createMany(rows: SessionRow[]) {
+    const { data, error } = await this.supabase
+      .from('sessions')
+      .insert(rows)
+      .select('*');
+
+    if (error) throw error;
+    return data;
   }
 
   async getSessionAIAnalysis(sessionId: string) {

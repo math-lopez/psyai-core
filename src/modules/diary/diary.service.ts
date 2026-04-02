@@ -154,6 +154,54 @@ export class DiaryService {
     return this.repository.updatePromptById(promptId, sanitizedUpdates);
   }
 
+  async createPatientLog(
+    psychologistId: string,
+    patientId: string,
+    input: CreateMyLogInput
+  ): Promise<PatientLog> {
+    await this.ensurePsychologistOwnsPatientOrThrow(psychologistId, patientId);
+
+    return this.repository.createLog({
+      ...input,
+      patient_id: patientId,
+      psychologist_id: psychologistId,
+    });
+  }
+
+  async updatePatientLog(
+    psychologistId: string,
+    logId: string,
+    input: UpdateMyLogInput
+  ): Promise<PatientLog> {
+    const existing = await this.repository.getLogById(logId);
+
+    if (!existing) {
+      throw this.fastify.httpErrors.notFound('Log não encontrado.');
+    }
+
+    await this.ensurePsychologistOwnsPatientOrThrow(psychologistId, existing.patient_id);
+
+    const sanitizedUpdates: UpdateMyLogInput = { ...input };
+    delete (sanitizedUpdates as Record<string, unknown>).patient_id;
+    delete (sanitizedUpdates as Record<string, unknown>).psychologist_id;
+    delete (sanitizedUpdates as Record<string, unknown>).id;
+    delete (sanitizedUpdates as Record<string, unknown>).created_at;
+
+    return this.repository.updateLogById(logId, sanitizedUpdates);
+  }
+
+  async deletePatientLog(psychologistId: string, logId: string): Promise<void> {
+    const existing = await this.repository.getLogById(logId);
+
+    if (!existing) {
+      throw this.fastify.httpErrors.notFound('Log não encontrado.');
+    }
+
+    await this.ensurePsychologistOwnsPatientOrThrow(psychologistId, existing.patient_id);
+
+    await this.repository.deleteLogById(logId);
+  }
+
   async listPatientLogs(psychologistId: string, patientId: string): Promise<PatientLog[]> {
     await this.ensurePsychologistOwnsPatientOrThrow(psychologistId, patientId);
     return this.repository.listLogsByPatientId(patientId);

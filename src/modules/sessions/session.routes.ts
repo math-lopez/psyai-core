@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { SessionService } from './session.service';
-import { createSessionSchema, updateSessionSchema } from './session.schemas';
+import { createSessionSchema, updateSessionSchema, createRecurrentSessionSchema } from './session.schemas';
 
 export default async function sessionRoutes(app: FastifyInstance) {
   const service = new SessionService(app);
@@ -23,6 +23,28 @@ export default async function sessionRoutes(app: FastifyInstance) {
 
   app.post('/v1/sessions/:id/analyze-ai', { preHandler: [app.authenticate] }, async (request: any) => {
     return service.analyzeSessionAI(request.params.id, request.authUser.id);
+  });
+
+  app.get('/v1/patients/:patientId/sessions', { preHandler: [app.authenticate] }, async (request: any) => {
+    return service.listByPatient(request.params.patientId, request.authUser.id);
+  });
+
+  app.post('/v1/sessions/:id/cancel', { preHandler: [app.authenticate] }, async (request: any) => {
+    return service.cancelSession(request.params.id, request.authUser.id);
+  });
+
+  app.post('/v1/sessions/recurrent', { preHandler: [app.authenticate] }, async (request: any, reply) => {
+    const parsed = createRecurrentSessionSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      return reply.status(400).send({
+        message: 'Dados inválidos',
+        errors: parsed.error.flatten(),
+      });
+    }
+
+    const created = await service.createRecurrent(request.authUser.id, parsed.data);
+    return reply.status(201).send(created);
   });
 
   app.post('/v1/sessions', { preHandler: [app.authenticate] }, async (request: any, reply) => {
