@@ -9,12 +9,20 @@
       "destination": "/api/docs"
     },
     {
-      "source": "/docs/(.*)",
-      "destination": "/api/docs/$1"
+      "source": "/docs/:path*",
+      "destination": "/api/docs/:path*"
     },
     {
-      "source": "/(.*)",
-      "destination": "/api/$1"
+      "source": "/v1/:path*",
+      "destination": "/api/v1/:path*"
+    },
+    {
+      "source": "/health",
+      "destination": "/api/health"
+    },
+    {
+      "source": "/",
+      "destination": "/api"
     }
   ]
 }
