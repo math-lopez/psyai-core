@@ -27,17 +27,16 @@ export async function buildApp() {
   await app.register(swagger, {
     openapi: {
       info: {
-        title: 'PsyAI Core API',
-        description: 'API do backend psyai-core — gestão de psicólogos, pacientes, sessões e IA.',
-        version: '1.0.0',
+        title: "PsyAI Core API",
+        description: "API do psyai-core",
+        version: "1.0.0",
       },
       components: {
         securitySchemes: {
           bearerAuth: {
-            type: 'http',
-            scheme: 'bearer',
-            bearerFormat: 'JWT',
-            description: 'Token JWT do Supabase Auth',
+            type: "http",
+            scheme: "bearer",
+            bearerFormat: "JWT",
           },
         },
       },
@@ -46,9 +45,9 @@ export async function buildApp() {
   });
 
   await app.register(swaggerUi, {
-    routePrefix: '/docs',
+    routePrefix: "/docs",
     uiConfig: {
-      docExpansion: 'list',
+      docExpansion: "list",
       deepLinking: true,
     },
   });
