@@ -1,5 +1,5 @@
-import { buildApp } from "./app.js";
-import { env } from "./plugins/env.js";
+import { buildApp } from "./app";
+import { env } from "./plugins/env";
 
 async function bootstrap() {
   const app = await buildApp();
