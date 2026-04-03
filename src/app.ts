@@ -24,6 +24,10 @@ export async function buildApp() {
     logger: true,
   });
 
+  const hasSupabaseConfig = Boolean(
+    process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY,
+  );
+
   await app.register(swagger, {
     openapi: {
       info: {
@@ -81,10 +85,31 @@ export async function buildApp() {
     }
   });
 
+  await app.register(healthRoute);
+
+  if (!hasSupabaseConfig) {
+    app.log.warn(
+      "SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY nao configurados; iniciando apenas a rota /health.",
+    );
+
+    app.setErrorHandler((error, request, reply) => {
+      request.log.error(error);
+
+      const statusCode =
+        typeof (error as any).statusCode === "number"
+          ? (error as any).statusCode
+          : 500;
+
+      return reply.status(statusCode).send({
+        message: (error as Error).message || "Erro interno do servidor",
+      });
+    });
+
+    return app;
+  }
+
   await app.register(supabasePlugin);
   await app.register(authPlugin);
-
-  await app.register(healthRoute);
 
   await app.register(patientRoutes);
   await app.register(sessionRoutes);
