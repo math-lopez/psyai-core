@@ -19,8 +19,19 @@ export default async function handler(
 ) {
   const app = await getApp();
 
-  if (typeof req.url === "string" && req.url.startsWith("/api")) {
-    req.url = req.url.replace(/^\/api/, "") || "/";
+  if (typeof req.url === "string") {
+    const parsed = new URL(req.url, "http://localhost");
+    const pathParam = parsed.searchParams.getAll("path");
+
+    if (pathParam.length > 0) {
+      const normalizedPath = `/${pathParam.join("/")}`.replace(/\/+/g, "/");
+      const forwardedParams = new URLSearchParams(parsed.searchParams);
+      forwardedParams.delete("path");
+      const query = forwardedParams.toString();
+      req.url = `${normalizedPath}${query ? `?${query}` : ""}`;
+    } else if (req.url.startsWith("/api")) {
+      req.url = req.url.replace(/^\/api/, "") || "/";
+    }
   }
 
   app.server.emit("request", req, res);

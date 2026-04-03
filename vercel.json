@@ -6,19 +6,19 @@
   "rewrites": [
     {
       "source": "/docs",
-      "destination": "/api/docs"
+      "destination": "/api?path=docs"
     },
     {
       "source": "/docs/:path*",
-      "destination": "/api/docs/:path*"
+      "destination": "/api?path=docs&path=:path*"
     },
     {
       "source": "/v1/:path*",
-      "destination": "/api/v1/:path*"
+      "destination": "/api?path=v1&path=:path*"
     },
     {
       "source": "/health",
-      "destination": "/api/health"
+      "destination": "/api?path=health"
     },
     {
       "source": "/",
