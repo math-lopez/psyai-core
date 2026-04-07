@@ -13,10 +13,24 @@ async function getApp() {
   return app;
 }
 
+const CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
 export default async function handler(
   req: IncomingMessage,
   res: ServerResponse,
 ) {
+  // Responde preflight OPTIONS imediatamente, antes do Fastify
+  if (req.method === "OPTIONS") {
+    Object.entries(CORS_HEADERS).forEach(([k, v]) => res.setHeader(k, v));
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
   const app = await getApp();
 
   if (typeof req.url === "string") {
