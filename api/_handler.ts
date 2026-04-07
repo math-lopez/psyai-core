@@ -23,9 +23,11 @@ export default async function handler(
   req: IncomingMessage,
   res: ServerResponse,
 ) {
+  // Injeta headers CORS em todas as respostas
+  Object.entries(CORS_HEADERS).forEach(([k, v]) => res.setHeader(k, v));
+
   // Responde preflight OPTIONS imediatamente, antes do Fastify
   if (req.method === "OPTIONS") {
-    Object.entries(CORS_HEADERS).forEach(([k, v]) => res.setHeader(k, v));
     res.writeHead(204);
     res.end();
     return;
