@@ -193,6 +193,7 @@ export class SessionService {
         : 'completed';
 
     await this.repository.update(id, psychologistId, {
+      status: 'completed',
       processing_status: nextStatus,
     });
 

@@ -5,6 +5,12 @@ export type ProcessingStatus =
   | 'completed'
   | 'failed';
 
+export type SessionStatus =
+  | 'scheduled'
+  | 'completed'
+  | 'cancelled'
+  | 'draft';
+
 export interface CreateSessionInput {
   patient_id: string;
   session_date: string;
@@ -16,6 +22,7 @@ export interface CreateSessionInput {
   interventions?: string | null;
   session_summary_manual?: string | null;
   next_steps?: string | null;
+  status?: SessionStatus;
 }
 
 export interface CreateRecurrentSessionInput {
@@ -46,4 +53,5 @@ export interface UpdateSessionInput {
   audio_file_name?: string | null;
   audio_file_path?: string | null;
   processing_status?: ProcessingStatus;
+  status?: SessionStatus;
 }
