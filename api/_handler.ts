@@ -13,20 +13,20 @@ async function getApp() {
   return app;
 }
 
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN ?? "https://www.psyccai.com";
-
-function setCorsHeaders(res: ServerResponse) {
-  res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
+function setCorsHeaders(req: IncomingMessage, res: ServerResponse) {
+  const origin = (req.headers["origin"] as string) ?? "*";
+  res.setHeader("Access-Control-Allow-Origin", origin);
   res.setHeader("Access-Control-Allow-Methods", "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Vary", "Origin");
 }
 
 export default async function handler(
   req: IncomingMessage,
   res: ServerResponse,
 ) {
-  setCorsHeaders(res);
+  setCorsHeaders(req, res);
 
   if (req.method === "OPTIONS") {
     res.writeHead(200);

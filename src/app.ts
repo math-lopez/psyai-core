@@ -59,7 +59,7 @@ export async function buildApp() {
 
   await app.register(sensible);
   await app.register(cors, {
-    origin: process.env.ALLOWED_ORIGIN ?? true,
+    origin: true,
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
