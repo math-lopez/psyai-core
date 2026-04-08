@@ -13,13 +13,23 @@ async function getApp() {
   return app;
 }
 
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN ?? "https://www.psyccai.com";
+
+function setCorsHeaders(res: ServerResponse) {
+  res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
+  res.setHeader("Access-Control-Allow-Methods", "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+}
+
 export default async function handler(
   req: IncomingMessage,
   res: ServerResponse,
 ) {
-  // Preflight OPTIONS is handled by Vercel edge headers (vercel.json)
+  setCorsHeaders(res);
+
   if (req.method === "OPTIONS") {
-    res.writeHead(204);
+    res.writeHead(200);
     res.end();
     return;
   }
