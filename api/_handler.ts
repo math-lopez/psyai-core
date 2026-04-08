@@ -13,20 +13,11 @@ async function getApp() {
   return app;
 }
 
-const CORS_HEADERS: Record<string, string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
-
 export default async function handler(
   req: IncomingMessage,
   res: ServerResponse,
 ) {
-  // Injeta headers CORS em todas as respostas
-  Object.entries(CORS_HEADERS).forEach(([k, v]) => res.setHeader(k, v));
-
-  // Responde preflight OPTIONS imediatamente, antes do Fastify
+  // Preflight OPTIONS is handled by Vercel edge headers (vercel.json)
   if (req.method === "OPTIONS") {
     res.writeHead(204);
     res.end();
