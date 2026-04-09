@@ -101,7 +101,7 @@ export class SessionService {
     if (!existing) {
       throw makeHttpError(404, 'Sessão não encontrada');
     }
-    await this.repository.update(id, psychologistId, { processing_status: 'cancelled' as any });
+    await this.repository.update(id, psychologistId, { status: 'cancelled', processing_status: 'cancelled' as any });
     return { success: true };
   }
 

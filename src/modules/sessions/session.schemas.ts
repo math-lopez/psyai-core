@@ -11,6 +11,7 @@ export const createSessionSchema = z.object({
   interventions: z.string().nullable().optional(),
   session_summary_manual: z.string().nullable().optional(),
   next_steps: z.string().nullable().optional(),
+  status: z.enum(['scheduled', 'completed', 'cancelled', 'draft']).optional(),
 });
 
 export const updateSessionSchema = createSessionSchema.partial();
