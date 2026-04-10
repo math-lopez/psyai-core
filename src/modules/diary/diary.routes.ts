@@ -7,6 +7,7 @@ import {
   getMyContextSchema,
   listMyLogsSchema,
   listMyPromptsSchema,
+  listMyPsychologistsSchema,
   listPatientLogsSchema,
   listPatientPromptsSchema,
   updateMyLogSchema,
@@ -36,31 +37,44 @@ export const diaryRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook("preHandler", fastify.authenticate);
 
   fastify.get(
+    "/v1/diary/me/psychologists",
+    { schema: listMyPsychologistsSchema },
+    async (request) => {
+      const authUserId = (request as typeof request & AuthenticatedRequest).authUser.id;
+      const data = await service.listMyPsychologists(authUserId);
+      return { data };
+    }
+  );
+
+  fastify.get<{ Querystring: { psychologistId: string } }>(
     "/v1/diary/me/context",
     { schema: getMyContextSchema },
     async (request) => {
       const authUserId = (request as typeof request & AuthenticatedRequest).authUser.id;
-      const data = await service.getMyContext(authUserId);
+      const { psychologistId } = request.query;
+      const data = await service.getMyContext(authUserId, psychologistId);
       return { data };
     }
   );
 
-  fastify.get(
+  fastify.get<{ Querystring: { psychologistId: string } }>(
     "/v1/diary/me/logs",
     { schema: listMyLogsSchema },
     async (request) => {
       const authUserId = (request as typeof request & AuthenticatedRequest).authUser.id;
-      const data = await service.listMyLogs(authUserId);
+      const { psychologistId } = request.query;
+      const data = await service.listMyLogs(authUserId, psychologistId);
       return { data };
     }
   );
 
-  fastify.post<{ Body: CreateMyLogInput }>(
+  fastify.post<{ Body: CreateMyLogInput; Querystring: { psychologistId: string } }>(
     "/v1/diary/me/logs",
     { schema: createMyLogSchema },
     async (request, reply) => {
       const authUserId = (request as typeof request & AuthenticatedRequest).authUser.id;
-      const data = await service.createMyLog(authUserId, request.body);
+      const { psychologistId } = request.query;
+      const data = await service.createMyLog(authUserId, psychologistId, request.body);
 
       return reply.code(201).send({
         message: "Log criado com sucesso.",
@@ -69,12 +83,13 @@ export const diaryRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  fastify.put<{ Params: { logId: string }; Body: UpdateMyLogInput }>(
+  fastify.put<{ Params: { logId: string }; Body: UpdateMyLogInput; Querystring: { psychologistId: string } }>(
     "/v1/diary/me/logs/:logId",
     { schema: updateMyLogSchema },
     async (request) => {
       const authUserId = (request as typeof request & AuthenticatedRequest).authUser.id;
-      const data = await service.updateMyLog(authUserId, request.params.logId, request.body);
+      const { psychologistId } = request.query;
+      const data = await service.updateMyLog(authUserId, psychologistId, request.params.logId, request.body);
 
       return {
         message: "Log atualizado com sucesso.",
@@ -83,12 +98,13 @@ export const diaryRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  fastify.delete<{ Params: { logId: string } }>(
+  fastify.delete<{ Params: { logId: string }; Querystring: { psychologistId: string } }>(
     "/v1/diary/me/logs/:logId",
     { schema: deleteMyLogSchema },
     async (request) => {
       const authUserId = (request as typeof request & AuthenticatedRequest).authUser.id;
-      await service.deleteMyLog(authUserId, request.params.logId);
+      const { psychologistId } = request.query;
+      await service.deleteMyLog(authUserId, psychologistId, request.params.logId);
 
       return {
         message: "Log excluído com sucesso.",
@@ -96,22 +112,24 @@ export const diaryRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  fastify.get(
+  fastify.get<{ Querystring: { psychologistId: string } }>(
     "/v1/diary/me/prompts",
     { schema: listMyPromptsSchema },
     async (request) => {
       const authUserId = (request as typeof request & AuthenticatedRequest).authUser.id;
-      const data = await service.listMyPrompts(authUserId);
+      const { psychologistId } = request.query;
+      const data = await service.listMyPrompts(authUserId, psychologistId);
       return { data };
     }
   );
 
-  fastify.patch<{ Params: { promptId: string }; Body: UpdatePromptInput }>(
+  fastify.patch<{ Params: { promptId: string }; Body: UpdatePromptInput; Querystring: { psychologistId: string } }>(
     "/v1/diary/me/prompts/:promptId",
     { schema: updateMyPromptSchema },
     async (request) => {
       const authUserId = (request as typeof request & AuthenticatedRequest).authUser.id;
-      const data = await service.updateMyPrompt(authUserId, request.params.promptId, request.body);
+      const { psychologistId } = request.query;
+      const data = await service.updateMyPrompt(authUserId, psychologistId, request.params.promptId, request.body);
 
       return {
         message: "Prompt atualizado com sucesso.",

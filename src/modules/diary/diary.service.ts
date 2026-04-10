@@ -5,6 +5,7 @@ import type {
   DiaryPatientContext,
   PatientLog,
   PatientLogPrompt,
+  PatientPsychologistItem,
   UpdateMyLogInput,
   UpdatePromptInput,
 } from "./diary.types";
@@ -16,12 +17,18 @@ export class DiaryService {
     private readonly repository: DiaryRepository
   ) {}
 
-  private async getPatientContextOrThrow(userId: string): Promise<DiaryPatientContext> {
-    const context = await this.repository.getPatientAccessByUserId(userId);
+  private async getPatientContextOrThrow(
+    userId: string,
+    psychologistId: string,
+  ): Promise<DiaryPatientContext> {
+    const context = await this.repository.getPatientAccessByUserAndPsychologist(
+      userId,
+      psychologistId,
+    );
 
     if (!context) {
       throw this.fastify.httpErrors.forbidden(
-        "Usuário autenticado não possui vínculo de portal do paciente."
+        "Vínculo ativo não encontrado para o psicólogo selecionado."
       );
     }
 
@@ -51,8 +58,23 @@ export class DiaryService {
     return patient;
   }
 
-  async getMyContext(authUserId: string) {
-    const context = await this.getPatientContextOrThrow(authUserId);
+  async listMyPsychologists(authUserId: string): Promise<PatientPsychologistItem[]> {
+    const records = await this.repository.listPatientAccessByUserId(authUserId);
+
+    if (records.length === 0) {
+      throw this.fastify.httpErrors.forbidden(
+        "Usuário autenticado não possui vínculo de portal do paciente."
+      );
+    }
+
+    return records.map((r) => ({
+      psychologistId: r.psychologist_id,
+      patientId: r.patient_id,
+    }));
+  }
+
+  async getMyContext(authUserId: string, psychologistId: string) {
+    const context = await this.getPatientContextOrThrow(authUserId, psychologistId);
 
     return {
       patientId: context.patientId,
@@ -60,13 +82,17 @@ export class DiaryService {
     };
   }
 
-  async listMyLogs(authUserId: string): Promise<PatientLog[]> {
-    const context = await this.getPatientContextOrThrow(authUserId);
+  async listMyLogs(authUserId: string, psychologistId: string): Promise<PatientLog[]> {
+    const context = await this.getPatientContextOrThrow(authUserId, psychologistId);
     return this.repository.listLogsByPatientId(context.patientId);
   }
 
-  async createMyLog(authUserId: string, input: CreateMyLogInput): Promise<PatientLog> {
-    const context = await this.getPatientContextOrThrow(authUserId);
+  async createMyLog(
+    authUserId: string,
+    psychologistId: string,
+    input: CreateMyLogInput,
+  ): Promise<PatientLog> {
+    const context = await this.getPatientContextOrThrow(authUserId, psychologistId);
 
     return this.repository.createLog({
       ...input,
@@ -77,10 +103,11 @@ export class DiaryService {
 
   async updateMyLog(
     authUserId: string,
+    psychologistId: string,
     logId: string,
     input: UpdateMyLogInput
   ): Promise<PatientLog> {
-    const context = await this.getPatientContextOrThrow(authUserId);
+    const context = await this.getPatientContextOrThrow(authUserId, psychologistId);
 
     const existing = await this.repository.getLogById(logId);
 
@@ -104,8 +131,8 @@ export class DiaryService {
     return this.repository.updateLogById(logId, sanitizedUpdates);
   }
 
-  async deleteMyLog(authUserId: string, logId: string): Promise<void> {
-    const context = await this.getPatientContextOrThrow(authUserId);
+  async deleteMyLog(authUserId: string, psychologistId: string, logId: string): Promise<void> {
+    const context = await this.getPatientContextOrThrow(authUserId, psychologistId);
 
     const existing = await this.repository.getLogById(logId);
 
@@ -122,17 +149,18 @@ export class DiaryService {
     await this.repository.deleteLogById(logId);
   }
 
-  async listMyPrompts(authUserId: string): Promise<PatientLogPrompt[]> {
-    const context = await this.getPatientContextOrThrow(authUserId);
+  async listMyPrompts(authUserId: string, psychologistId: string): Promise<PatientLogPrompt[]> {
+    const context = await this.getPatientContextOrThrow(authUserId, psychologistId);
     return this.repository.listPromptsByPatientId(context.patientId);
   }
 
   async updateMyPrompt(
     authUserId: string,
+    psychologistId: string,
     promptId: string,
     input: UpdatePromptInput
   ): Promise<PatientLogPrompt> {
-    const context = await this.getPatientContextOrThrow(authUserId);
+    const context = await this.getPatientContextOrThrow(authUserId, psychologistId);
 
     const existing = await this.repository.getPromptById(promptId);
 

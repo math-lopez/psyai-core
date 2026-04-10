@@ -13,6 +13,9 @@ export interface PatientAccess {
   psychologist_id: string;
   status: AccessStatus;
   invite_token: string | null;
+  invite_code: string | null;
+  invite_expires_at: string | null;
+  user_id: string | null;
   invited_at: string | null;
   accepted_at: string | null;
   suspended_at: string | null;
@@ -23,4 +26,11 @@ export interface PatientAccess {
 
 export interface UpdateAccessStatusInput {
   status: AccessStatus;
+}
+
+export interface ActivatePatientInput {
+  email: string;
+  password: string;
+  token?: string;
+  code?: string;
 }

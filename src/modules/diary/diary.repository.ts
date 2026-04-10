@@ -13,11 +13,27 @@ import type {
 export class DiaryRepository {
   constructor(private readonly supabase: SupabaseClient) {}
 
-  async getPatientAccessByUserId(userId: string): Promise<PatientAccessRecord | null> {
+  async listPatientAccessByUserId(userId: string): Promise<PatientAccessRecord[]> {
     const { data, error } = await this.supabase
       .from("patient_access")
       .select("patient_id, psychologist_id, user_id")
       .eq("user_id", userId)
+      .eq("status", "active");
+
+    if (error) throw error;
+    return (data ?? []) as PatientAccessRecord[];
+  }
+
+  async getPatientAccessByUserAndPsychologist(
+    userId: string,
+    psychologistId: string,
+  ): Promise<PatientAccessRecord | null> {
+    const { data, error } = await this.supabase
+      .from("patient_access")
+      .select("patient_id, psychologist_id, user_id")
+      .eq("user_id", userId)
+      .eq("psychologist_id", psychologistId)
+      .eq("status", "active")
       .maybeSingle();
 
     if (error) throw error;

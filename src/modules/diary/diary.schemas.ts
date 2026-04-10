@@ -3,9 +3,42 @@ const uuidParam = {
   format: "uuid",
 };
 
+const psychologistIdQuery = {
+  type: "object",
+  properties: {
+    psychologistId: { type: "string", format: "uuid" },
+  },
+  required: ["psychologistId"],
+};
+
+export const listMyPsychologistsSchema = {
+  tags: ["Diary"],
+  summary: "Lista os psicólogos vinculados ao paciente logado",
+  response: {
+    200: {
+      type: "object",
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              psychologistId: { type: "string", format: "uuid" },
+              patientId: { type: "string", format: "uuid" },
+            },
+            required: ["psychologistId", "patientId"],
+          },
+        },
+      },
+      required: ["data"],
+    },
+  },
+};
+
 export const getMyContextSchema = {
   tags: ["Diary"],
-  summary: "Retorna o contexto do paciente logado",
+  summary: "Retorna o contexto do paciente logado para o psicólogo selecionado",
+  querystring: psychologistIdQuery,
   response: {
     200: {
       type: "object",
@@ -26,7 +59,8 @@ export const getMyContextSchema = {
 
 export const listMyLogsSchema = {
   tags: ["Diary"],
-  summary: "Lista logs do paciente logado",
+  summary: "Lista logs do paciente logado para o psicólogo selecionado",
+  querystring: psychologistIdQuery,
   response: {
     200: {
       type: "object",
@@ -43,7 +77,8 @@ export const listMyLogsSchema = {
 
 export const createMyLogSchema = {
   tags: ["Diary"],
-  summary: "Cria log para o paciente logado",
+  summary: "Cria log para o paciente logado no contexto do psicólogo selecionado",
+  querystring: psychologistIdQuery,
   body: {
     type: "object",
     additionalProperties: true,
@@ -69,6 +104,7 @@ export const createMyLogSchema = {
 export const updateMyLogSchema = {
   tags: ["Diary"],
   summary: "Atualiza log do paciente logado",
+  querystring: psychologistIdQuery,
   params: {
     type: "object",
     properties: {
@@ -101,6 +137,7 @@ export const updateMyLogSchema = {
 export const deleteMyLogSchema = {
   tags: ["Diary"],
   summary: "Exclui log do paciente logado",
+  querystring: psychologistIdQuery,
   params: {
     type: "object",
     properties: {
@@ -121,7 +158,8 @@ export const deleteMyLogSchema = {
 
 export const listMyPromptsSchema = {
   tags: ["Diary"],
-  summary: "Lista prompts do paciente logado",
+  summary: "Lista prompts do paciente logado para o psicólogo selecionado",
+  querystring: psychologistIdQuery,
   response: {
     200: {
       type: "object",
@@ -139,6 +177,7 @@ export const listMyPromptsSchema = {
 export const updateMyPromptSchema = {
   tags: ["Diary"],
   summary: "Atualiza prompt do paciente logado",
+  querystring: psychologistIdQuery,
   params: {
     type: "object",
     properties: {

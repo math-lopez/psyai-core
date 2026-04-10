@@ -51,6 +51,11 @@ export interface PatientAccessRecord {
   user_id: string;
 }
 
+export interface PatientPsychologistItem {
+  psychologistId: string;
+  patientId: string;
+}
+
 export interface PatientOwnerRecord {
   id: string;
   psychologist_id: string;

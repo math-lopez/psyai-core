@@ -60,3 +60,23 @@ export const simpleMessageResponseSchema = {
     message: { type: "string" },
   },
 } as const;
+
+export const activatePatientBodySchema = {
+  type: "object",
+  required: ["email", "password"],
+  additionalProperties: false,
+  properties: {
+    email: { type: "string", format: "email" },
+    password: { type: "string", minLength: 6 },
+    token: { type: "string" },
+    code: { type: "string", minLength: 6, maxLength: 6 },
+  },
+} as const;
+
+export const activatePatientResponseSchema = {
+  type: "object",
+  properties: {
+    message: { type: "string" },
+  },
+  required: ["message"],
+} as const;

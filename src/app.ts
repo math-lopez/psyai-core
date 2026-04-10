@@ -13,6 +13,7 @@ import patientRoutes from "./modules/patients/patient.routes";
 import sessionRoutes from "./modules/sessions/session.routes";
 import storageRoutes from "./modules/storage/storage.routes";
 import accessRoutes from "./modules/access/access.routes";
+import patientActivateRoutes from "./modules/access/patient-activate.routes";
 import analysisRoutes from "./modules/analysis/analysis.routes";
 import attachmentRoutes from "./modules/attachment/attachment.routes";
 import { diaryRoutes } from "./modules/diary/diary.routes";
@@ -112,6 +113,7 @@ export async function buildApp() {
   await app.register(supabasePlugin);
   await app.register(authPlugin);
 
+  await app.register(patientActivateRoutes);
   await app.register(patientRoutes);
   await app.register(sessionRoutes);
   await app.register(storageRoutes);
