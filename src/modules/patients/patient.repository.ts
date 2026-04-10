@@ -156,7 +156,7 @@ export class PatientRepository {
 
     if (logs && logs.length > 0) {
       const logIds = logs.map((l: { id: string }) => l.id);
-      await this.safeDelete('patient_log_attachments', 'log_id', logIds);
+      await this.safeDelete('patient_log_attachments', 'patient_log_id', logIds);
     }
 
     // Delete patient diary logs

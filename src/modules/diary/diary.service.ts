@@ -19,23 +19,47 @@ export class DiaryService {
 
   private async getPatientContextOrThrow(
     userId: string,
-    psychologistId: string,
+    psychologistId?: string,
   ): Promise<DiaryPatientContext> {
-    const context = await this.repository.getPatientAccessByUserAndPsychologist(
-      userId,
-      psychologistId,
-    );
+    if (psychologistId) {
+      const context = await this.repository.getPatientAccessByUserAndPsychologist(
+        userId,
+        psychologistId,
+      );
 
-    if (!context) {
+      if (!context) {
+        throw this.fastify.httpErrors.forbidden(
+          "Vínculo ativo não encontrado para o psicólogo selecionado."
+        );
+      }
+
+      return {
+        patientId: context.patient_id,
+        psychologistId: context.psychologist_id,
+        userId: context.user_id,
+      };
+    }
+
+    // Sem psychologistId: auto-seleciona se houver exatamente um vínculo ativo
+    const records = await this.repository.listPatientAccessByUserId(userId);
+
+    if (records.length === 0) {
       throw this.fastify.httpErrors.forbidden(
-        "Vínculo ativo não encontrado para o psicólogo selecionado."
+        "Usuário autenticado não possui vínculo de portal do paciente."
       );
     }
 
+    if (records.length > 1) {
+      throw this.fastify.httpErrors.badRequest(
+        "Você possui mais de um psicólogo vinculado. Informe o psychologistId."
+      );
+    }
+
+    const record = records[0];
     return {
-      patientId: context.patient_id,
-      psychologistId: context.psychologist_id,
-      userId: context.user_id,
+      patientId: record.patient_id,
+      psychologistId: record.psychologist_id,
+      userId: record.user_id,
     };
   }
 
@@ -73,7 +97,7 @@ export class DiaryService {
     }));
   }
 
-  async getMyContext(authUserId: string, psychologistId: string) {
+  async getMyContext(authUserId: string, psychologistId?: string) {
     const context = await this.getPatientContextOrThrow(authUserId, psychologistId);
 
     return {
@@ -82,14 +106,14 @@ export class DiaryService {
     };
   }
 
-  async listMyLogs(authUserId: string, psychologistId: string): Promise<PatientLog[]> {
+  async listMyLogs(authUserId: string, psychologistId?: string): Promise<PatientLog[]> {
     const context = await this.getPatientContextOrThrow(authUserId, psychologistId);
     return this.repository.listLogsByPatientId(context.patientId);
   }
 
   async createMyLog(
     authUserId: string,
-    psychologistId: string,
+    psychologistId: string | undefined,
     input: CreateMyLogInput,
   ): Promise<PatientLog> {
     const context = await this.getPatientContextOrThrow(authUserId, psychologistId);
@@ -103,7 +127,7 @@ export class DiaryService {
 
   async updateMyLog(
     authUserId: string,
-    psychologistId: string,
+    psychologistId: string | undefined,
     logId: string,
     input: UpdateMyLogInput
   ): Promise<PatientLog> {
@@ -131,7 +155,7 @@ export class DiaryService {
     return this.repository.updateLogById(logId, sanitizedUpdates);
   }
 
-  async deleteMyLog(authUserId: string, psychologistId: string, logId: string): Promise<void> {
+  async deleteMyLog(authUserId: string, psychologistId: string | undefined, logId: string): Promise<void> {
     const context = await this.getPatientContextOrThrow(authUserId, psychologistId);
 
     const existing = await this.repository.getLogById(logId);
@@ -149,14 +173,14 @@ export class DiaryService {
     await this.repository.deleteLogById(logId);
   }
 
-  async listMyPrompts(authUserId: string, psychologistId: string): Promise<PatientLogPrompt[]> {
+  async listMyPrompts(authUserId: string, psychologistId?: string): Promise<PatientLogPrompt[]> {
     const context = await this.getPatientContextOrThrow(authUserId, psychologistId);
     return this.repository.listPromptsByPatientId(context.patientId);
   }
 
   async updateMyPrompt(
     authUserId: string,
-    psychologistId: string,
+    psychologistId: string | undefined,
     promptId: string,
     input: UpdatePromptInput
   ): Promise<PatientLogPrompt> {

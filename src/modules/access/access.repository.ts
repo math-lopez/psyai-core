@@ -39,6 +39,74 @@ export class AccessRepository {
     return data as PatientAccess | null;
   }
 
+  async findAnyActiveByPatientEmail(patientId: string): Promise<PatientAccess | null> {
+    // 1. Busca o email do paciente deste psicólogo
+    const { data: patient, error: patientError } = await this.supabase
+      .from("patients")
+      .select("email")
+      .eq("id", patientId)
+      .maybeSingle();
+
+    if (patientError) throw patientError;
+    if (!patient?.email) return null;
+
+    // 2. Acha todos os patient_ids com este email (de qualquer psicólogo)
+    const { data: sameEmailPatients, error: sameEmailError } = await this.supabase
+      .from("patients")
+      .select("id")
+      .eq("email", patient.email);
+
+    if (sameEmailError) throw sameEmailError;
+    if (!sameEmailPatients?.length) return null;
+
+    const patientIds = sameEmailPatients.map((p: { id: string }) => p.id);
+
+    // 3. Verifica se algum desses patient_ids tem um patient_access ativo com user_id
+    const { data, error } = await this.supabase
+      .from("patient_access")
+      .select("*")
+      .in("patient_id", patientIds)
+      .eq("status", "active")
+      .not("user_id", "is", null)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data as PatientAccess | null;
+  }
+
+  async upsertActiveAccess(params: {
+    patientId: string;
+    psychologistId: string;
+    userId: string;
+    now: string;
+  }): Promise<PatientAccess> {
+    const { data, error } = await this.supabase
+      .from("patient_access")
+      .upsert(
+        {
+          patient_id: params.patientId,
+          psychologist_id: params.psychologistId,
+          user_id: params.userId,
+          status: "active",
+          accepted_at: params.now,
+          updated_at: params.now,
+          invited_at: null,
+          invite_token: null,
+          invite_code: null,
+          invite_expires_at: null,
+          revoked_at: null,
+          suspended_at: null,
+        },
+        { onConflict: "patient_id,psychologist_id" },
+      )
+      .select("*")
+      .single();
+
+    if (error) throw error;
+    return data as PatientAccess;
+  }
+
   async findByToken(token: string): Promise<PatientAccess | null> {
     const { data, error } = await this.supabase
       .from("patient_access")

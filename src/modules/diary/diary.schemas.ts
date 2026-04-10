@@ -8,7 +8,6 @@ const psychologistIdQuery = {
   properties: {
     psychologistId: { type: "string", format: "uuid" },
   },
-  required: ["psychologistId"],
 };
 
 export const listMyPsychologistsSchema = {

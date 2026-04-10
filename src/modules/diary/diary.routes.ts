@@ -46,7 +46,7 @@ export const diaryRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  fastify.get<{ Querystring: { psychologistId: string } }>(
+  fastify.get<{ Querystring: { psychologistId?: string } }>(
     "/v1/diary/me/context",
     { schema: getMyContextSchema },
     async (request) => {
@@ -57,7 +57,7 @@ export const diaryRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  fastify.get<{ Querystring: { psychologistId: string } }>(
+  fastify.get<{ Querystring: { psychologistId?: string } }>(
     "/v1/diary/me/logs",
     { schema: listMyLogsSchema },
     async (request) => {
@@ -68,7 +68,7 @@ export const diaryRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  fastify.post<{ Body: CreateMyLogInput; Querystring: { psychologistId: string } }>(
+  fastify.post<{ Body: CreateMyLogInput; Querystring: { psychologistId?: string } }>(
     "/v1/diary/me/logs",
     { schema: createMyLogSchema },
     async (request, reply) => {
@@ -83,7 +83,7 @@ export const diaryRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  fastify.put<{ Params: { logId: string }; Body: UpdateMyLogInput; Querystring: { psychologistId: string } }>(
+  fastify.put<{ Params: { logId: string }; Body: UpdateMyLogInput; Querystring: { psychologistId?: string } }>(
     "/v1/diary/me/logs/:logId",
     { schema: updateMyLogSchema },
     async (request) => {
@@ -98,7 +98,7 @@ export const diaryRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  fastify.delete<{ Params: { logId: string }; Querystring: { psychologistId: string } }>(
+  fastify.delete<{ Params: { logId: string }; Querystring: { psychologistId?: string } }>(
     "/v1/diary/me/logs/:logId",
     { schema: deleteMyLogSchema },
     async (request) => {
@@ -112,7 +112,7 @@ export const diaryRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  fastify.get<{ Querystring: { psychologistId: string } }>(
+  fastify.get<{ Querystring: { psychologistId?: string } }>(
     "/v1/diary/me/prompts",
     { schema: listMyPromptsSchema },
     async (request) => {
@@ -123,7 +123,7 @@ export const diaryRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  fastify.patch<{ Params: { promptId: string }; Body: UpdatePromptInput; Querystring: { psychologistId: string } }>(
+  fastify.patch<{ Params: { promptId: string }; Body: UpdatePromptInput; Querystring: { psychologistId?: string } }>(
     "/v1/diary/me/prompts/:promptId",
     { schema: updateMyPromptSchema },
     async (request) => {

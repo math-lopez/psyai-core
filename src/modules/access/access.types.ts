@@ -1,4 +1,5 @@
 export const ACCESS_STATUS = [
+  "inactive",
   "invited",
   "active",
   "suspended",
@@ -33,4 +34,8 @@ export interface ActivatePatientInput {
   password: string;
   token?: string;
   code?: string;
+}
+
+export interface PatientAccessResponse extends PatientAccess {
+  has_linked_account?: boolean;
 }
