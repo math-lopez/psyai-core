@@ -227,6 +227,84 @@ export class AttachmentService {
     };
   }
 
+  async listForPatient(
+    userId: string,
+    psychologistId?: string,
+  ): Promise<PatientAttachment[]> {
+    const accesses = await this.repository.findPatientAccessByUserId(
+      userId,
+      psychologistId,
+    );
+
+    if (accesses.length === 0) {
+      throw this.fastify.httpErrors.notFound(
+        "Nenhum vínculo ativo encontrado para este paciente",
+      );
+    }
+
+    const results = await Promise.all(
+      accesses.map((a) =>
+        this.repository.listSharedWithPatient(a.patient_id, a.psychologist_id),
+      ),
+    );
+
+    return results.flat().sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+  }
+
+  async getDownloadUrlForPatient(params: {
+    userId: string;
+    attachmentId: string;
+    psychologistId?: string;
+  }): Promise<SignedDownloadUrlResponse> {
+    const accesses = await this.repository.findPatientAccessByUserId(
+      params.userId,
+      params.psychologistId,
+    );
+
+    if (accesses.length === 0) {
+      throw this.fastify.httpErrors.notFound(
+        "Nenhum vínculo ativo encontrado para este paciente",
+      );
+    }
+
+    let attachment: PatientAttachment | null = null;
+    for (const access of accesses) {
+      attachment = await this.repository.findSharedById({
+        attachmentId: params.attachmentId,
+        patientId: access.patient_id,
+        psychologistId: access.psychologist_id,
+      });
+      if (attachment) break;
+    }
+
+    if (!attachment) {
+      throw this.fastify.httpErrors.notFound("Anexo não encontrado");
+    }
+
+    const { data, error } = await this.fastify.supabaseAdmin.storage
+      .from(BUCKET_NAME)
+      .createSignedUrl(
+        attachment.file_path,
+        SIGNED_URL_EXPIRES_IN_SECONDS,
+        {
+          download: attachment.file_name,
+        },
+      );
+
+    if (error || !data?.signedUrl) {
+      throw this.fastify.httpErrors.badRequest(
+        `Erro ao gerar URL assinada: ${error?.message ?? "desconhecido"}`,
+      );
+    }
+
+    return {
+      signedUrl: data.signedUrl,
+      expiresIn: SIGNED_URL_EXPIRES_IN_SECONDS,
+    };
+  }
+
   async getById(params: {
     patientId: string;
     psychologistId: string;

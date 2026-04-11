@@ -41,7 +41,6 @@ export const patientAttachmentSchema = {
     visibility: { type: "string" },
     uploaded_by: { type: "string" },
     created_at: { type: "string" },
-    updated_at: { type: ["string", "null"] },
   },
 } as const;
 

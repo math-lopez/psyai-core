@@ -25,7 +25,6 @@ export interface PatientAttachment {
   visibility: AttachmentVisibility;
   uploaded_by: AttachmentUploadedBy;
   created_at: string;
-  updated_at: string | null;
 }
 
 export interface UploadAttachmentInput {

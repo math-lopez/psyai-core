@@ -79,7 +79,6 @@ export class AttachmentRepository {
         visibility: params.visibility,
         uploaded_by: "psychologist",
         created_at: params.now,
-        updated_at: params.now,
       })
       .select("*")
       .single();
@@ -89,6 +88,69 @@ export class AttachmentRepository {
     }
 
     return data as PatientAttachment;
+  }
+
+  async findPatientAccessByUserId(
+    userId: string,
+    psychologistId?: string,
+  ): Promise<{ patient_id: string; psychologist_id: string }[]> {
+    let query = this.supabase
+      .from("patient_access")
+      .select("patient_id, psychologist_id")
+      .eq("user_id", userId)
+      .eq("status", "active");
+
+    if (psychologistId) {
+      query = query.eq("psychologist_id", psychologistId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? []) as { patient_id: string; psychologist_id: string }[];
+  }
+
+  async listSharedWithPatient(
+    patientId: string,
+    psychologistId: string,
+  ): Promise<PatientAttachment[]> {
+    const { data, error } = await this.supabase
+      .from("patient_attachments")
+      .select("*")
+      .eq("patient_id", patientId)
+      .eq("psychologist_id", psychologistId)
+      .eq("visibility", "shared_with_patient")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? []) as PatientAttachment[];
+  }
+
+  async findSharedById(params: {
+    attachmentId: string;
+    patientId: string;
+    psychologistId: string;
+  }): Promise<PatientAttachment | null> {
+    const { data, error } = await this.supabase
+      .from("patient_attachments")
+      .select("*")
+      .eq("id", params.attachmentId)
+      .eq("patient_id", params.patientId)
+      .eq("psychologist_id", params.psychologistId)
+      .eq("visibility", "shared_with_patient")
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data as PatientAttachment | null;
   }
 
   async deleteById(params: {

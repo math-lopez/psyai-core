@@ -114,6 +114,72 @@ const attachmentRoutes: FastifyPluginAsync = async (
     },
   );
 
+  fastify.get(
+    "/v1/attachments/me",
+    {
+      schema: {
+        tags: ["Attachments"],
+        summary: "Lista anexos compartilhados com o paciente autenticado",
+        querystring: {
+          type: "object",
+          properties: {
+            psychologistId: { type: "string", format: "uuid" },
+          },
+        },
+        response: {
+          200: attachmentsListResponseSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const userId = request.authUser.id;
+      const { psychologistId } = request.query as { psychologistId?: string };
+
+      const data = await attachmentService.listForPatient(userId, psychologistId);
+
+      return reply.send({ data });
+    },
+  );
+
+  fastify.get(
+    "/v1/attachments/me/:attachmentId/download-url",
+    {
+      schema: {
+        tags: ["Attachments"],
+        summary: "Gera URL assinada para download de um anexo compartilhado com o paciente",
+        params: {
+          type: "object",
+          required: ["attachmentId"],
+          properties: {
+            attachmentId: { type: "string", format: "uuid" },
+          },
+        },
+        querystring: {
+          type: "object",
+          properties: {
+            psychologistId: { type: "string", format: "uuid" },
+          },
+        },
+        response: {
+          200: signedUrlResponseSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const userId = request.authUser.id;
+      const { attachmentId } = request.params as { attachmentId: string };
+      const { psychologistId } = request.query as { psychologistId?: string };
+
+      const data = await attachmentService.getDownloadUrlForPatient({
+        userId,
+        attachmentId,
+        psychologistId,
+      });
+
+      return reply.send({ data });
+    },
+  );
+
   fastify.delete(
     "/v1/patients/:patientId/attachments/:attachmentId",
     {
