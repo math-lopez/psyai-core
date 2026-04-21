@@ -90,13 +90,30 @@ export class AttachmentRepository {
     return data as PatientAttachment;
   }
 
+  async findPsychologistNameById(
+    psychologistId: string,
+    userClient: SupabaseClient,
+  ): Promise<string | null> {
+    const { data, error } = await userClient
+      .from("profiles")
+      .select("full_name")
+      .eq("id", psychologistId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return (data as any)?.full_name ?? null;
+  }
+
   async findPatientAccessByUserId(
     userId: string,
     psychologistId?: string,
-  ): Promise<{ patient_id: string; psychologist_id: string }[]> {
+  ): Promise<{ patient_id: string; psychologist_id: string; psychologist_name: string | null }[]> {
     let query = this.supabase
       .from("patient_access")
-      .select("patient_id, psychologist_id")
+      .select("patient_id, psychologist_id, profiles!psychologist_id(full_name)")
       .eq("user_id", userId)
       .eq("status", "active");
 
@@ -107,10 +124,27 @@ export class AttachmentRepository {
     const { data, error } = await query;
 
     if (error) {
-      throw error;
+      // fallback sem join caso a FK não exista
+      let fallbackQuery = this.supabase
+        .from("patient_access")
+        .select("patient_id, psychologist_id")
+        .eq("user_id", userId)
+        .eq("status", "active");
+
+      if (psychologistId) {
+        fallbackQuery = fallbackQuery.eq("psychologist_id", psychologistId);
+      }
+
+      const { data: fallbackData, error: fallbackError } = await fallbackQuery;
+      if (fallbackError) throw fallbackError;
+      return (fallbackData ?? []).map((r: any) => ({ ...r, psychologist_name: null }));
     }
 
-    return (data ?? []) as { patient_id: string; psychologist_id: string }[];
+    return (data ?? []).map((r: any) => ({
+      patient_id: r.patient_id,
+      psychologist_id: r.psychologist_id,
+      psychologist_name: r.profiles?.full_name ?? null,
+    }));
   }
 
   async listSharedWithPatient(

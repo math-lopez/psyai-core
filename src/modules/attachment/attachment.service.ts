@@ -4,7 +4,6 @@ import { FastifyInstance } from "fastify";
 import { sanitizeFileName } from "../../utils/sanitize-file-name";
 import { AttachmentRepository } from "./attachment.repository";
 import {
-  AttachmentVisibility,
   PatientAttachment,
   SignedDownloadUrlResponse,
   UploadAttachmentInput,
@@ -243,9 +242,10 @@ export class AttachmentService {
     }
 
     const results = await Promise.all(
-      accesses.map((a) =>
-        this.repository.listSharedWithPatient(a.patient_id, a.psychologist_id),
-      ),
+      accesses.map(async (a) => {
+        const attachments = await this.repository.listSharedWithPatient(a.patient_id, a.psychologist_id);
+        return attachments.map((att) => ({ ...att, psychologist_name: a.psychologist_name }));
+      }),
     );
 
     return results.flat().sort(

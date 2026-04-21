@@ -24,6 +24,7 @@ export interface PatientAttachment {
   file_type: string;
   visibility: AttachmentVisibility;
   uploaded_by: AttachmentUploadedBy;
+  psychologist_name?: string | null;
   created_at: string;
 }
 
