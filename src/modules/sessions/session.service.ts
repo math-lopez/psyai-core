@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { SessionRepository } from './session.repository';
 import { CreateSessionInput, CreateRecurrentSessionInput, UpdateSessionInput } from './session.types';
+import { PLAN_LIMITS, SubscriptionTier } from '../../config/plans';
 
 function makeHttpError(statusCode: number, message: string) {
   const err = new Error(message) as Error & { statusCode?: number };
@@ -85,6 +86,20 @@ export class SessionService {
       throw makeHttpError(403, 'Paciente não pertence ao psicólogo autenticado');
     }
 
+    const tier = (await this.repository.getSubscriptionTier(psychologistId)) as SubscriptionTier;
+    const safeTier = PLAN_LIMITS[tier] ? tier : 'free';
+    const limit = PLAN_LIMITS[safeTier].maxSessionsPerMonth;
+
+    if (limit !== Infinity) {
+      const currentCount = await this.repository.countSessionsThisMonth(psychologistId);
+      if (currentCount >= limit) {
+        throw makeHttpError(
+          403,
+          `Limite atingido! Seu plano ${PLAN_LIMITS[safeTier].name} permite apenas ${limit} sessões por mês. Faça um upgrade para continuar.`
+        );
+      }
+    }
+
     return this.repository.create(psychologistId, payload);
   }
 
@@ -115,6 +130,10 @@ export class SessionService {
       throw makeHttpError(403, 'Paciente não pertence ao psicólogo autenticado');
     }
 
+    const tier = (await this.repository.getSubscriptionTier(psychologistId)) as SubscriptionTier;
+    const safeTier = PLAN_LIMITS[tier] ? tier : 'free';
+    const limit = PLAN_LIMITS[safeTier].maxSessionsPerMonth;
+
     const { until_date, session_date, ...baseFields } = payload;
 
     const rows = [];
@@ -137,6 +156,21 @@ export class SessionService {
         processing_status: 'draft',
       });
       currentDate = new Date(currentDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+    }
+
+    if (limit !== Infinity) {
+      const currentCount = await this.repository.countSessionsThisMonth(psychologistId);
+      const thisMonthRows = rows.filter((r) => {
+        const d = new Date(r.session_date);
+        const now = new Date();
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+      });
+      if (currentCount + thisMonthRows.length > limit) {
+        throw makeHttpError(
+          403,
+          `Limite atingido! Seu plano ${PLAN_LIMITS[safeTier].name} permite apenas ${limit} sessões por mês. Faça um upgrade para continuar.`
+        );
+      }
     }
 
     return this.repository.createMany(rows);

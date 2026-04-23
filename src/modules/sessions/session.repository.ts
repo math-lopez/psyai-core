@@ -162,6 +162,33 @@ export class SessionRepository {
     return data;
   }
 
+  async getSubscriptionTier(userId: string) {
+    const { data, error } = await this.supabase
+      .from('profiles')
+      .select('subscription_tier')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data?.subscription_tier ?? 'free';
+  }
+
+  async countSessionsThisMonth(psychologistId: string) {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
+    const { count, error } = await this.supabase
+      .from('sessions')
+      .select('id', { count: 'exact', head: true })
+      .eq('psychologist_id', psychologistId)
+      .gte('session_date', firstDay)
+      .lte('session_date', lastDay);
+
+    if (error) throw error;
+    return count ?? 0;
+  }
+
   async getSessionAIAnalysis(sessionId: string) {
     const { data, error } = await this.supabase
       .from('session_ai_analysis')
