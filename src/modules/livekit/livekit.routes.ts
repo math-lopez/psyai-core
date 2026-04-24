@@ -137,7 +137,7 @@ export default async function livekitRoutes(app: FastifyInstance) {
   });
 
   // GET /v1/livekit/join/:sessionId — público, sem autenticação (acesso pelo link do paciente)
-  app.get('/v1/livekit/join/:sessionId', async (request: any, reply) => {
+  app.get('/v1/livekit/join/:sessionId', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (request: any, reply) => {
     const { sessionId } = request.params;
     const serverUrl = process.env.LIVEKIT_URL;
 
@@ -153,6 +153,14 @@ export default async function livekitRoutes(app: FastifyInstance) {
 
     if (!session.livekit_patient_token) {
       return reply.status(400).send({ message: 'Sessão de vídeo ainda não foi iniciada pelo psicólogo' });
+    }
+
+    if (session.video_status === 'ended') {
+      return reply.status(410).send({ message: 'Esta sessão já foi encerrada' });
+    }
+
+    if (!['waiting', 'active'].includes(session.video_status)) {
+      return reply.status(400).send({ message: 'Sessão de vídeo não está disponível no momento' });
     }
 
     return { token: session.livekit_patient_token, roomName: session.livekit_room_name, serverUrl };

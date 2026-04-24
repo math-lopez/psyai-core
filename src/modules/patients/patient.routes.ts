@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { PatientService } from './patient.service';
+import { createPatientSchema, updatePatientSchema } from './patient.schemas';
 
 export default async function patientRoutes(app: FastifyInstance) {
   const service = new PatientService(app);
@@ -13,18 +14,20 @@ export default async function patientRoutes(app: FastifyInstance) {
   });
 
   app.post('/v1/patients', { preHandler: [app.authenticate] }, async (request: any, reply) => {
-    if (!request.body || typeof request.body !== 'object') {
-      return reply.status(400).send({ message: 'Body é obrigatório' });
+    const parsed = createPatientSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ message: 'Dados inválidos', errors: parsed.error.flatten() });
     }
-    const patient = await service.create(request.authUser.id, request.body);
+    const patient = await service.create(request.authUser.id, parsed.data);
     return reply.status(201).send(patient);
   });
 
   app.put('/v1/patients/:id', { preHandler: [app.authenticate] }, async (request: any, reply) => {
-    if (!request.body || typeof request.body !== 'object') {
-      return reply.status(400).send({ message: 'Body é obrigatório' });
+    const parsed = updatePatientSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ message: 'Dados inválidos', errors: parsed.error.flatten() });
     }
-    return service.update(request.params.id, request.authUser.id, request.body);
+    return service.update(request.params.id, request.authUser.id, parsed.data);
   });
 
   app.delete('/v1/patients/:id', { preHandler: [app.authenticate] }, async (request: any) => {

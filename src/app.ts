@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import sensible from "@fastify/sensible";
 import cors from "@fastify/cors";
+import rateLimit from "@fastify/rate-limit";
 import multipart from "@fastify/multipart";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
@@ -30,37 +31,50 @@ export async function buildApp() {
     process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY,
   );
 
-  await app.register(swagger, {
-    openapi: {
-      info: {
-        title: "PsyAI Core API",
-        description: "API do psyai-core",
-        version: "1.0.0",
-      },
-      components: {
-        securitySchemes: {
-          bearerAuth: {
-            type: "http",
-            scheme: "bearer",
-            bearerFormat: "JWT",
+  if (process.env.NODE_ENV !== 'production') {
+    await app.register(swagger, {
+      openapi: {
+        info: {
+          title: "PsyAI Core API",
+          description: "API do psyai-core",
+          version: "1.0.0",
+        },
+        components: {
+          securitySchemes: {
+            bearerAuth: {
+              type: "http",
+              scheme: "bearer",
+              bearerFormat: "JWT",
+            },
           },
         },
+        security: [{ bearerAuth: [] }],
       },
-      security: [{ bearerAuth: [] }],
-    },
-  });
+    });
 
-  await app.register(swaggerUi, {
-    routePrefix: "/docs",
-    uiConfig: {
-      docExpansion: "list",
-      deepLinking: true,
-    },
-  });
+    await app.register(swaggerUi, {
+      routePrefix: "/docs",
+      uiConfig: {
+        docExpansion: "list",
+        deepLinking: true,
+      },
+    });
+  }
 
   await app.register(sensible);
+
+  await app.register(rateLimit, {
+    global: true,
+    max: 120,                // 120 req por janela por IP
+    timeWindow: '1 minute',
+    errorResponseBuilder: () => ({
+      statusCode: 429,
+      message: 'Muitas requisições. Tente novamente em alguns instantes.',
+    }),
+  });
+
   await app.register(cors, {
-    origin: true,
+    origin: process.env.FRONTEND_URL,
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
