@@ -36,7 +36,6 @@ export class SessionService {
   }
 
   async list(psychologistId: string) {
-    await this.repository.autoCancelExpiredSessions(psychologistId);
     return this.repository.listSessionsByPsychologist(psychologistId);
   }
 
