@@ -1,4 +1,16 @@
-import { AccessToken } from 'livekit-server-sdk';
+import { AccessToken, RoomServiceClient } from 'livekit-server-sdk';
+
+export function getRoomService(): RoomServiceClient {
+  const url = process.env.LIVEKIT_URL;
+  const apiKey = process.env.LIVEKIT_API_KEY;
+  const apiSecret = process.env.LIVEKIT_API_SECRET;
+
+  if (!url || !apiKey || !apiSecret) {
+    throw new Error('Variáveis LiveKit não configuradas');
+  }
+
+  return new RoomServiceClient(url, apiKey, apiSecret);
+}
 
 export async function generateToken(roomName: string, identity: string): Promise<string> {
   const apiKey = process.env.LIVEKIT_API_KEY;

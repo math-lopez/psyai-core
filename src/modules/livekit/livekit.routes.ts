@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { generateToken } from './livekit.service';
+import { generateToken, getRoomService } from './livekit.service';
+import { sendSessionLinkEmail } from '../../services/emailService';
 
 function makeHttpError(statusCode: number, message: string) {
   const err = new Error(message) as Error & { statusCode?: number };
@@ -87,19 +88,20 @@ export default async function livekitRoutes(app: FastifyInstance) {
       throw makeHttpError(500, 'Erro ao atualizar sessão com dados LiveKit');
     }
 
-    // Notifica o paciente via Edge Function (não bloqueia a resposta em caso de falha)
-    if (patient && profile) {
-      app.supabase.functions.invoke('notify-patient-session', {
-        body: {
-          patientEmail: patient.email,
-          patientName: patient.full_name,
-          psychologistName: profile.full_name,
-          sessionId,
-          joinUrl: patientJoinUrl,
-        },
+    // Envia link de acesso ao paciente via Resend
+    console.log(`[livekit/start] patient=${JSON.stringify(patient)} profile=${JSON.stringify(profile)} joinUrl=${patientJoinUrl}`);
+    if (patient?.email && profile?.full_name) {
+      sendSessionLinkEmail({
+        patientEmail: patient.email,
+        patientName: patient.full_name,
+        psychologistName: profile.full_name,
+        joinUrl: patientJoinUrl,
       }).catch((err: Error) => {
-        app.log.warn({ err }, 'Falha ao invocar notify-patient-session');
+        app.log.warn({ err }, 'Falha ao enviar email de link de sessão');
+        console.error('[email] Falha ao enviar link de sessão:', err?.message);
       });
+    } else {
+      console.warn('[livekit/start] Email não enviado: patient ou profile não encontrado');
     }
 
     return { roomName, token: psychologistToken, serverUrl };
@@ -159,6 +161,26 @@ export default async function livekitRoutes(app: FastifyInstance) {
   // PATCH /v1/livekit/end/:sessionId
   app.patch('/v1/livekit/end/:sessionId', { preHandler: [app.authenticate] }, async (request: any) => {
     const { sessionId } = request.params;
+
+    const { data: session, error: fetchError } = await app.supabase
+      .from('sessions')
+      .select('livekit_room_name')
+      .eq('id', sessionId)
+      .maybeSingle();
+
+    if (fetchError || !session) {
+      throw makeHttpError(404, 'Sessão não encontrada');
+    }
+
+    // Encerra a room no LiveKit — desconecta todos os participantes
+    if (session.livekit_room_name) {
+      try {
+        const roomService = getRoomService();
+        await roomService.deleteRoom(session.livekit_room_name);
+      } catch (e) {
+        app.log.warn({ e }, 'Falha ao deletar room no LiveKit (pode já ter sido encerrada)');
+      }
+    }
 
     const { error } = await app.supabase
       .from('sessions')
