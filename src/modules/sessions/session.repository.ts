@@ -204,11 +204,25 @@ export class SessionRepository {
       .from('sessions')
       .select('id', { count: 'exact', head: true })
       .eq('psychologist_id', psychologistId)
+      .neq('status', 'cancelled')
       .gte('session_date', firstDay)
       .lte('session_date', lastDay);
 
     if (error) throw error;
     return count ?? 0;
+  }
+
+  async autoCancelExpiredSessions(psychologistId: string) {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    const { error } = await this.supabase
+      .from('sessions')
+      .update({ status: 'cancelled', processing_status: 'cancelled' })
+      .eq('psychologist_id', psychologistId)
+      .eq('status', 'scheduled')
+      .lt('session_date', cutoff);
+
+    if (error) throw error;
   }
 
   async getSessionAIAnalysis(sessionId: string) {
