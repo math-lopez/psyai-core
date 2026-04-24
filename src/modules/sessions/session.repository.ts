@@ -90,6 +90,28 @@ export class SessionRepository {
     return data;
   }
 
+  async findPatientById(patientId: string) {
+    const { data, error } = await this.supabase
+      .from('patients')
+      .select('full_name, email')
+      .eq('id', patientId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data as { full_name: string; email: string } | null;
+  }
+
+  async findPsychologistNameById(psychologistId: string) {
+    const { data, error } = await this.supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', psychologistId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data?.full_name as string | null;
+  }
+
   async patientBelongsToPsychologist(patientId: string, psychologistId: string) {
     const { data, error } = await this.supabase
       .from('patients')

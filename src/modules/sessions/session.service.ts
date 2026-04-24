@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { SessionRepository } from './session.repository';
 import { CreateSessionInput, CreateRecurrentSessionInput, UpdateSessionInput } from './session.types';
 import { PLAN_LIMITS, SubscriptionTier } from '../../config/plans';
+import { sendSessionScheduledEmail } from '../../services/emailService';
 
 function makeHttpError(statusCode: number, message: string) {
   const err = new Error(message) as Error & { statusCode?: number };
@@ -100,7 +101,38 @@ export class SessionService {
       }
     }
 
-    return this.repository.create(psychologistId, payload);
+    const session = await this.repository.create(psychologistId, payload);
+
+    // Dispara o email sem bloquear a resposta
+    this.sendScheduledEmail(psychologistId, payload.patient_id, payload.session_date).catch((err) => {
+      this.app.log.error({ err }, 'Falha ao enviar email de sessão agendada');
+      console.error('[email] Falha ao enviar email de sessão agendada:', err?.message ?? err);
+    });
+
+    return session;
+  }
+
+  private async sendScheduledEmail(psychologistId: string, patientId: string, sessionDate: string) {
+    console.log(`[email] sendScheduledEmail chamado — patientId=${patientId}`);
+
+    const [patient, psychologistName] = await Promise.all([
+      this.repository.findPatientById(patientId),
+      this.repository.findPsychologistNameById(psychologistId),
+    ]);
+
+    console.log(`[email] patient encontrado: ${JSON.stringify(patient)}`);
+
+    if (!patient?.email) {
+      console.log('[email] Paciente sem email cadastrado, abortando envio.');
+      return;
+    }
+
+    await sendSessionScheduledEmail({
+      patientName: patient.full_name,
+      patientEmail: patient.email,
+      psychologistName: psychologistName || 'seu psicólogo',
+      sessionDate,
+    });
   }
 
   async listByPatient(patientId: string, psychologistId: string) {
