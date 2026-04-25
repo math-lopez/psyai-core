@@ -32,10 +32,7 @@ export class SessionRepository {
   async listSessionsByPsychologist(psychologistId: string) {
     const { data, error } = await this.supabase
       .from('sessions')
-      .select(`
-        *,
-        patient:patients(full_name)
-      `)
+      .select(`*, patient:patients(full_name)`)
       .eq('psychologist_id', psychologistId)
       .order('session_date', { ascending: false });
 
@@ -66,10 +63,7 @@ export class SessionRepository {
   async findByIdAndPsychologist(id: string, psychologistId: string) {
     const { data, error } = await this.supabase
       .from('sessions')
-      .select(`
-        *,
-        patient:patients(full_name)
-      `)
+      .select(`*, patient:patients(full_name)`)
       .eq('id', id)
       .eq('psychologist_id', psychologistId)
       .maybeSingle();
@@ -210,19 +204,6 @@ export class SessionRepository {
 
     if (error) throw error;
     return count ?? 0;
-  }
-
-  async autoCancelExpiredSessions(psychologistId: string) {
-    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-
-    const { error } = await this.supabase
-      .from('sessions')
-      .update({ status: 'cancelled', processing_status: 'cancelled' })
-      .eq('psychologist_id', psychologistId)
-      .eq('status', 'scheduled')
-      .lt('session_date', cutoff);
-
-    if (error) throw error;
   }
 
   async getSessionAIAnalysis(sessionId: string) {
