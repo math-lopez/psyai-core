@@ -206,6 +206,23 @@ export class SessionRepository {
     return count ?? 0;
   }
 
+  async countVideoCallsThisMonth(psychologistId: string) {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
+    const { count, error } = await this.supabase
+      .from('sessions')
+      .select('id', { count: 'exact', head: true })
+      .eq('psychologist_id', psychologistId)
+      .in('video_status', ['waiting', 'active', 'ended'])
+      .gte('created_at', firstDay)
+      .lte('created_at', lastDay);
+
+    if (error) throw error;
+    return count ?? 0;
+  }
+
   async getSessionAIAnalysis(sessionId: string) {
     const { data, error } = await this.supabase
       .from('session_ai_analysis')

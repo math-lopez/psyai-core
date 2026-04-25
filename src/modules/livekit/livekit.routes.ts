@@ -2,6 +2,8 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { generateToken, getRoomService } from './livekit.service';
 import { sendSessionLinkEmail } from '../../services/emailService';
+import { SessionRepository } from '../sessions/session.repository';
+import { PLAN_LIMITS, SubscriptionTier } from '../../config/plans';
 
 function makeHttpError(statusCode: number, message: string) {
   const err = new Error(message) as Error & { statusCode?: number };
@@ -49,6 +51,23 @@ export default async function livekitRoutes(app: FastifyInstance) {
 
     if (sessionError || !session) {
       throw makeHttpError(404, 'Sessão não encontrada');
+    }
+
+    // Verifica limite de videochamadas do plano
+    const repo = new SessionRepository(app.supabase);
+    const tier = (await repo.getSubscriptionTier(psychologistId)) as SubscriptionTier;
+    const safeTier = PLAN_LIMITS[tier] ? tier : 'free';
+    const videoLimit = PLAN_LIMITS[safeTier].maxVideoCallsPerMonth;
+
+    if (videoLimit === 0) {
+      throw makeHttpError(403, `Videochamadas não estão disponíveis no plano ${PLAN_LIMITS[safeTier].name}. Faça um upgrade para continuar.`);
+    }
+
+    if (videoLimit !== Infinity) {
+      const usedThisMonth = await repo.countVideoCallsThisMonth(psychologistId);
+      if (usedThisMonth >= videoLimit) {
+        throw makeHttpError(403, `Limite atingido! Seu plano ${PLAN_LIMITS[safeTier].name} permite apenas ${videoLimit} videochamadas por mês.`);
+      }
     }
 
     // Busca dados do paciente e do psicólogo
