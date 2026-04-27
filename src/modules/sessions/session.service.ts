@@ -268,10 +268,14 @@ export class SessionService {
       await this.processAudio(id, psychologistId, userToken);
     }
 
-    // Dispara análise de insights sem bloquear o retorno
-    this.analyzeSessionAI(id, psychologistId, userToken).catch((err) => {
-      this.app.log.error({ err }, '[insights] Falha ao disparar análise automática da sessão');
-    });
+    // Dispara análise de insights apenas para planos pro/ultra
+    const tier = (await this.repository.getSubscriptionTier(psychologistId)) as SubscriptionTier;
+    const safeTier = PLAN_LIMITS[tier] ? tier : 'free';
+    if (PLAN_LIMITS[safeTier].hasTherapeuticInsights) {
+      this.analyzeSessionAI(id, psychologistId, userToken).catch((err) => {
+        this.app.log.error({ err }, '[insights] Falha ao disparar análise automática da sessão');
+      });
+    }
 
     return { success: true, processing_status: nextStatus };
   }
