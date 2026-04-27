@@ -59,7 +59,7 @@ export class SessionService {
     return this.repository.getSessionAIAnalysis(sessionId);
   }
 
-  async analyzeSessionAI(sessionId: string, psychologistId: string) {
+  async analyzeSessionAI(sessionId: string, psychologistId: string, userToken?: string) {
     const session = await this.repository.findRawByIdAndPsychologist(sessionId, psychologistId);
 
     if (!session) {
@@ -68,6 +68,7 @@ export class SessionService {
 
     const { data, error } = await this.app.supabase.functions.invoke('analyze-session-v2', {
       body: { sessionId },
+      headers: userToken ? { Authorization: `Bearer ${userToken}` } : undefined,
     });
 
     if (error) {
@@ -266,6 +267,11 @@ export class SessionService {
     if (nextStatus === 'queued') {
       await this.processAudio(id, psychologistId, userToken);
     }
+
+    // Dispara análise de insights sem bloquear o retorno
+    this.analyzeSessionAI(id, psychologistId, userToken).catch((err) => {
+      this.app.log.error({ err }, '[insights] Falha ao disparar análise automática da sessão');
+    });
 
     return { success: true, processing_status: nextStatus };
   }

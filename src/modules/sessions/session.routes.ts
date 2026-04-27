@@ -22,7 +22,7 @@ export default async function sessionRoutes(app: FastifyInstance) {
   });
 
   app.post('/v1/sessions/:id/analyze-ai', { preHandler: [app.authenticate] }, async (request: any) => {
-    return service.analyzeSessionAI(request.params.id, request.authUser.id);
+    return service.analyzeSessionAI(request.params.id, request.authUser.id, request.userToken);
   });
 
   app.get('/v1/patients/:patientId/sessions', { preHandler: [app.authenticate] }, async (request: any) => {
