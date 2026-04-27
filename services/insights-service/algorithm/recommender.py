@@ -3,63 +3,63 @@ from typing import List
 _PATTERN_RECS: dict[str, list[str]] = {
     "Ansiedade": [
         "Explorar técnicas de regulação emocional (respiração diafragmática, grounding 5-4-3-2-1)",
-        "Identificar padrões de pensamento catastrófico e trabalhar reestruturação cognitiva",
+        "Identificar e questionar pensamentos catastróficos via reestruturação cognitiva",
     ],
     "Depressão": [
         "Monitorar humor e energia ao longo da semana com registro de humor diário",
-        "Fortalecer rede de suporte e trabalhar ativação comportamental gradual",
+        "Trabalhar ativação comportamental gradual e fortalecimento da rede de suporte",
     ],
-    "Trauma": [
-        "Priorizar estabilização emocional antes de qualquer trabalho de processamento direto",
-        "Avaliar necessidade de abordagem específica para trauma (EMDR, TCC-T, CPT)",
+    "Trauma e TEPT": [
+        "Priorizar estabilização emocional e psicoeducação sobre trauma antes de qualquer processamento direto",
+        "Avaliar indicação de abordagem específica para trauma (EMDR, TCC-T, CPT)",
     ],
     "Conflito familiar": [
-        "Mapear dinâmicas e padrões relacionais recorrentes",
+        "Mapear padrões e dinâmicas relacionais recorrentes no sistema familiar",
         "Trabalhar comunicação assertiva e estabelecimento saudável de limites",
     ],
-    "Autoestima": [
+    "Autoestima e autoconceito": [
         "Identificar e questionar crenças centrais negativas sobre si mesmo",
-        "Registrar conquistas e qualidades positivas ao longo da semana",
+        "Registrar conquistas e qualidades positivas ao longo da semana (diário de gratidão/conquistas)",
     ],
     "Luto": [
         "Acompanhar as fases do luto sem pressão de resolução temporal",
         "Explorar rituais simbólicos de despedida e possibilidade de ressignificação da perda",
     ],
-    "Trabalho e estresse": [
-        "Avaliar sintomas de burnout (Maslach) e estratégias de gestão de demandas",
-        "Trabalhar equilíbrio vida-trabalho e identificação de limites profissionais",
+    "Sobrecarga e burnout": [
+        "Avaliar sintomas de burnout (Maslach) e estratégias concretas de gestão de demandas",
+        "Trabalhar equilíbrio vida-trabalho e identificação de limites profissionais saudáveis",
     ],
     "Isolamento social": [
-        "Estimular exposição gradual a situações sociais com hierarquia de dificuldade",
-        "Investigar crenças disfuncionais que sustentam o isolamento",
+        "Estimular exposição gradual e hierárquica a situações sociais",
+        "Investigar crenças disfuncionais que sustentam o isolamento e comportamentos de evitação",
     ],
-    "Autocuidado": [
-        "Estabelecer metas comportamentais concretas e mensuráveis de autocuidado",
-        "Monitorar qualidade do sono, alimentação e prática de atividade física",
+    "Relacionamento e vínculos": [
+        "Explorar padrões de apego e como impactam os relacionamentos atuais",
+        "Trabalhar regulação emocional em contexto relacional e comunicação não-violenta",
     ],
     "Evolução positiva": [
-        "Reforçar os avanços conquistados e consolidar estratégias eficazes",
+        "Reforçar os avanços conquistados e consolidar estratégias que estão funcionando",
         "Discutir como manter os ganhos terapêuticos em situações de estresse futuro",
     ],
 }
 
 _RISK_RECS: dict[str, list[str]] = {
     "Ideação suicida": [
-        "⚠️ URGENTE: Realizar avaliação de risco completa (plano, intenção, meios, histórico)",
+        "⚠️ URGENTE: Realizar avaliação de risco completa (plano, intenção, meios disponíveis, histórico)",
         "Elaborar Plano de Segurança com o paciente e acionar rede de suporte imediata",
         "Considerar encaminhamento urgente para avaliação psiquiátrica",
     ],
     "Automutilação": [
-        "Avaliar extensão, frequência e função da automutilação (regulação emocional, comunicação)",
-        "Trabalhar tolerância ao mal-estar e identificação de gatilhos específicos",
+        "Avaliar extensão, frequência e função da automutilação (regulação emocional, comunicação, punição)",
+        "Trabalhar tolerância ao mal-estar (DBT) e identificação de gatilhos específicos",
         "Considerar supervisão clínica ou interconsulta com psiquiatria",
     ],
     "Risco de violência": [
         "⚠️ Avaliar segurança imediata do paciente e de terceiros envolvidos",
-        "Acionar recursos de proteção conforme necessidade (CRAS, CRAM, Delegacia, CVV)",
+        "Acionar recursos de proteção conforme necessidade (CRAS, CRAM, Delegacia, CVV: 188)",
     ],
     "Abuso de substâncias": [
-        "Avaliar estágio de motivação para mudança (modelo transteórico)",
+        "Avaliar estágio de motivação para mudança (modelo transteórico de Prochaska)",
         "Considerar encaminhamento para CAPS AD ou grupo de apoio (AA, NA)",
     ],
     "Crise aguda": [
@@ -83,10 +83,12 @@ def generate_recommendations(patterns: List[str], risks: List[str]) -> List[str]
             recs.append(rec)
             seen.add(rec)
 
+    # Riscos primeiro (prioridade máxima)
     for risk in risks:
         for rec in _RISK_RECS.get(risk, []):
             add(rec)
 
+    # Padrões clínicos
     for pattern in patterns:
         for rec in _PATTERN_RECS.get(pattern, []):
             add(rec)
