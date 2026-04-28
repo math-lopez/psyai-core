@@ -59,13 +59,7 @@ export class SessionService {
     return this.repository.getSessionAIAnalysis(sessionId);
   }
 
-  async analyzeSessionAI(sessionId: string, psychologistId: string, userToken?: string) {
-    const session = await this.repository.findRawByIdAndPsychologist(sessionId, psychologistId);
-
-    if (!session) {
-      throw makeHttpError(404, 'Sessão não encontrada');
-    }
-
+  async analyzeSessionAI(sessionId: string, _psychologistId: string, userToken?: string) {
     const { data, error } = await this.app.supabase.functions.invoke('analyze-session-v2', {
       body: { sessionId },
       headers: userToken ? { Authorization: `Bearer ${userToken}` } : undefined,
@@ -259,18 +253,20 @@ export class SessionService {
         ? 'queued'
         : 'completed';
 
-    await this.repository.update(id, psychologistId, {
-      status: 'completed',
-      processing_status: nextStatus,
-    });
+    const [, tier] = await Promise.all([
+      this.repository.update(id, psychologistId, {
+        status: 'completed',
+        processing_status: nextStatus,
+      }),
+      this.repository.getSubscriptionTier(psychologistId),
+    ]);
 
     if (nextStatus === 'queued') {
       await this.processAudio(id, psychologistId, userToken);
     }
 
     // Dispara análise de insights apenas para planos pro/ultra
-    const tier = (await this.repository.getSubscriptionTier(psychologistId)) as SubscriptionTier;
-    const safeTier = PLAN_LIMITS[tier] ? tier : 'free';
+    const safeTier = PLAN_LIMITS[tier as SubscriptionTier] ? (tier as SubscriptionTier) : 'free';
     if (PLAN_LIMITS[safeTier].hasTherapeuticInsights) {
       this.analyzeSessionAI(id, psychologistId, userToken).catch((err) => {
         this.app.log.error({ err }, '[insights] Falha ao disparar análise automática da sessão');
