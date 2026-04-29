@@ -1,6 +1,5 @@
 const getBaseUrl = () => process.env.EVOLUTION_API_URL ?? "";
 const getApiKey = () => process.env.EVOLUTION_API_KEY ?? "";
-const getWebhookUrl = () => `${process.env.PUBLIC_API_URL ?? ""}/v1/whatsapp/webhook`;
 
 const headers = () => ({
   "Content-Type": "application/json",
@@ -24,8 +23,11 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return res.json() as Promise<T>;
 }
 
-export async function createInstance(instanceName: string): Promise<void> {
-  const webhookUrl = getWebhookUrl();
+export async function restartInstance(instanceName: string): Promise<void> {
+  await request("PUT", `/instance/restart/${instanceName}`);
+}
+
+export async function createInstance(instanceName: string, webhookUrl: string): Promise<void> {
 
   await request("POST", "/instance/create", {
     instanceName,

@@ -28,7 +28,10 @@ const whatsappRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
 
   // Inicia conexão — o QR chega via webhook e fica armazenado no banco
   fastify.post("/v1/whatsapp/connect", async (request, reply) => {
-    await service.connect(request.authUser.id);
+    const proto = request.headers["x-forwarded-proto"] ?? request.protocol ?? "https";
+    const host = request.headers["x-forwarded-host"] ?? request.hostname;
+    const baseUrl = `${proto}://${host}`;
+    await service.connect(request.authUser.id, baseUrl);
     return reply.send({ ok: true, message: "Aguarde o QR Code ser gerado..." });
   });
 

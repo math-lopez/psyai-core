@@ -18,14 +18,18 @@ export class WhatsappService {
     return data;
   }
 
-  async connect(psychologistId: string): Promise<void> {
+  async connect(psychologistId: string, requestUrl: string): Promise<void> {
     const name = this.instanceName(psychologistId);
+    const webhookUrl = `${requestUrl}/v1/whatsapp/webhook`;
 
-    // Cria instância com webhook configurado — o QR chega via webhook
     try {
-      await evolution.createInstance(name);
-    } catch {
-      // Instância já existe — Evolution API vai reenviar o QR via webhook ao reconectar
+      await evolution.createInstance(name, webhookUrl);
+    } catch (e: any) {
+      if (!e.message?.includes("already") && !e.message?.includes("exists") && !e.message?.includes("409")) {
+        throw e;
+      }
+      // Instância já existe — faz restart para o Baileys reiniciar e gerar novo QR
+      await evolution.restartInstance(name);
     }
 
     await this.fastify.supabaseAdmin
