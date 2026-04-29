@@ -21,6 +21,7 @@ import { diaryRoutes } from "./modules/diary/diary.routes";
 import { treatmentRoutes } from "./modules/treatment/treatment.routes";
 import { featuresRoutes } from "./modules/features/features.routes";
 import livekitRoutes from "./modules/livekit/livekit.routes";
+import financialRoutes from "./modules/financial/financial.routes";
 
 export async function buildApp() {
   const app = Fastify({
@@ -138,6 +139,7 @@ export async function buildApp() {
   await app.register(treatmentRoutes);
   await app.register(featuresRoutes);
   await app.register(livekitRoutes);
+  await app.register(financialRoutes);
 
   app.setErrorHandler((error, request, reply) => {
     request.log.error(error);
