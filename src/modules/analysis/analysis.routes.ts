@@ -4,6 +4,7 @@ import {
   latestAnalysisResponseSchema,
   patientIdParamSchema,
   requestAnalysisResponseSchema,
+  synthesisResponseSchema,
 } from "./analysis.schemas";
 
 const analysisRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
@@ -58,6 +59,27 @@ const analysisRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
       );
 
       return reply.status(202).send(result);
+    },
+  );
+  fastify.post(
+    "/v1/patients/:patientId/synthesize",
+    {
+      schema: {
+        tags: ["Analysis"],
+        summary: "Gera síntese longitudinal do paciente com IA",
+        params: patientIdParamSchema,
+        response: {
+          200: synthesisResponseSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const { patientId } = request.params as { patientId: string };
+      const psychologistId = request.authUser.id;
+
+      const result = await analysisService.synthesizePatient(patientId, psychologistId);
+
+      return reply.send(result);
     },
   );
 };

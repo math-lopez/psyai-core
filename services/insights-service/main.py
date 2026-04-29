@@ -9,6 +9,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 
 from algorithm.pipeline import analyze_session
+from algorithm.synthesizer import synthesize_patient
 
 load_dotenv()
 
@@ -71,6 +72,18 @@ class AnalysisResponse(BaseModel):
     recommendations: List[str]
 
 
+class SynthesisResponse(BaseModel):
+    summary: str
+    evolution_analysis: str
+    key_themes: List[str]
+    improvements: List[str]
+    concerns: List[str]
+    risk_flags: List[str]
+    milestones: List[str]
+    recommendations: List[str]
+    sessions_analyzed: int
+
+
 # ---------- Endpoints ----------
 
 @app.get("/health")
@@ -89,3 +102,22 @@ def process_patient_analysis(
     session = request.sessions[0]
     result = analyze_session(session.model_dump(), request.patient.model_dump())
     return AnalysisResponse(**result)
+
+
+@app.post("/synthesize-patient", response_model=SynthesisResponse)
+def synthesize_patient_endpoint(
+    request: AnalysisRequest,
+    _token: str = Security(_verify_token),
+):
+    if not request.sessions:
+        raise HTTPException(status_code=400, detail="Nenhuma sessão fornecida")
+
+    try:
+        result = synthesize_patient(
+            patient=request.patient.model_dump(),
+            sessions=[s.model_dump() for s in request.sessions],
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+    return SynthesisResponse(**result)

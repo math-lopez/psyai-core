@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { AnalysisRepository } from "./analysis.repository";
 import { AnalysisProcessor } from "./analysis.processor";
-import { PatientAIAnalysis, RequestPatientAnalysisResult } from "./analysis.types";
+import { PatientAIAnalysis, RequestPatientAnalysisResult, SynthesisResult } from "./analysis.types";
 
 export class AnalysisService {
   private readonly repository: AnalysisRepository;
@@ -80,5 +80,83 @@ export class AnalysisService {
       accepted: true,
       message: "Solicitação de análise recebida com sucesso",
     };
+  }
+
+  async synthesizePatient(
+    patientId: string,
+    psychologistId: string,
+  ): Promise<SynthesisResult> {
+    const patient = await this.repository.findPatientById(patientId, psychologistId);
+    if (!patient) {
+      throw this.fastify.httpErrors.notFound(
+        "Paciente não encontrado para o psicólogo autenticado",
+      );
+    }
+
+    const sessions = await this.repository.findSessionsForSynthesis(patientId, psychologistId);
+    if (sessions.length === 0) {
+      throw this.fastify.httpErrors.unprocessableEntity(
+        "Nenhuma sessão encontrada para este paciente",
+      );
+    }
+
+    const insightsUrl = process.env.INSIGHTS_SERVICE_URL;
+    const insightsToken = process.env.INSIGHTS_SERVICE_TOKEN;
+
+    if (!insightsUrl || !insightsToken) {
+      throw this.fastify.httpErrors.serviceUnavailable(
+        "Serviço de insights não configurado",
+      );
+    }
+
+    const payload = {
+      patientId: patient.id,
+      psychologistId,
+      patient: { id: patient.id, name: patient.full_name },
+      sessions: sessions.map((s) => ({
+        id: s.id,
+        sessionDate: s.session_date,
+        transcript: s.transcript,
+        manualNotes: s.manual_notes,
+        clinicalNotes: s.clinical_notes,
+        interventions: s.interventions,
+        sessionSummaryManual: s.session_summary_manual,
+        nextSteps: s.next_steps,
+        highlights: s.highlights,
+      })),
+    };
+
+    const response = await fetch(`${insightsUrl}/synthesize-patient`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${insightsToken}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      this.fastify.log.error(
+        { patientId, status: response.status, body: text },
+        "[synthesis] falha ao chamar insights service",
+      );
+      throw this.fastify.httpErrors.badGateway(
+        "Falha ao gerar síntese do paciente",
+      );
+    }
+
+    const result = (await response.json()) as SynthesisResult;
+
+    const now = new Date().toISOString();
+    await this.repository.saveSynthesisResult({
+      patientId,
+      psychologistId,
+      resultJson: { ...result, type: "synthesis" },
+      summaryText: result.summary,
+      now,
+    });
+
+    return result;
   }
 }

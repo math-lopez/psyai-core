@@ -27,3 +27,15 @@ export interface RequestPatientAnalysisResult {
   accepted: true;
   message: string;
 }
+
+export interface SynthesisResult {
+  summary: string;
+  evolution_analysis: string;
+  key_themes: string[];
+  improvements: string[];
+  concerns: string[];
+  risk_flags: string[];
+  milestones: string[];
+  recommendations: string[];
+  sessions_analyzed: number;
+}

@@ -43,3 +43,20 @@ export const requestAnalysisResponseSchema = {
     message: { type: "string" },
   },
 } as const;
+
+const stringArray = { type: "array", items: { type: "string" } } as const;
+
+export const synthesisResponseSchema = {
+  type: "object",
+  properties: {
+    summary: { type: "string" },
+    evolution_analysis: { type: "string" },
+    key_themes: stringArray,
+    improvements: stringArray,
+    concerns: stringArray,
+    risk_flags: stringArray,
+    milestones: stringArray,
+    recommendations: stringArray,
+    sessions_analyzed: { type: "number" },
+  },
+} as const;
