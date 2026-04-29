@@ -1,0 +1,3 @@
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS reminder_enabled     BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS reminder_days_before INTEGER NOT NULL DEFAULT 1;

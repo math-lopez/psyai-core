@@ -2,7 +2,7 @@ import { Resend } from 'resend';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-export async function sendSessionScheduledEmail(params: {
+export async function sendSessionReminderEmail(params: {
   patientName: string;
   patientEmail: string;
   psychologistName: string;
@@ -15,18 +15,17 @@ export async function sendSessionScheduledEmail(params: {
 
   const date = new Date(sessionDate);
   const formattedDate = format(date, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR });
-  const formattedTime = format(date, "HH:mm", { locale: ptBR });
+  const formattedTime = format(date, 'HH:mm', { locale: ptBR });
 
   const fromAddress = `${psychologistName} via PsiAI <${FROM}>`;
 
-  console.log(`[email] Enviando email de sessão para ${patientEmail}`);
+  console.log(`[email] Enviando lembrete de sessão para ${patientEmail}`);
 
   const result = await resend.emails.send({
     from: fromAddress,
     to: patientEmail,
-    subject: `Sessão agendada para ${formattedDate}`,
+    subject: `Lembrete: sua sessão é amanhã às ${formattedTime}`,
     html: `
-
       <!DOCTYPE html>
       <html lang="pt-BR">
       <head>
@@ -50,10 +49,10 @@ export async function sendSessionScheduledEmail(params: {
                 <!-- Body -->
                 <tr>
                   <td style="padding:40px 40px 32px;">
-                    <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:1px;">Nova sessão agendada</p>
+                    <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:1px;">Lembrete de sessão</p>
                     <h1 style="margin:0 0 24px;font-size:24px;font-weight:900;color:#0f172a;line-height:1.2;">Olá, ${patientName}!</h1>
                     <p style="margin:0 0 32px;font-size:15px;color:#475569;line-height:1.6;">
-                      Sua sessão com <strong style="color:#0f172a;">${psychologistName}</strong> foi agendada. Confira os detalhes abaixo.
+                      Este é um lembrete de que sua sessão com <strong style="color:#0f172a;">${psychologistName}</strong> está agendada para <strong style="color:#0f172a;">amanhã</strong>. Confira os detalhes abaixo.
                     </p>
 
                     <!-- Session card -->
@@ -104,7 +103,7 @@ export async function sendSessionScheduledEmail(params: {
     throw new Error(`Resend error: ${result.error.message}`);
   }
 
-  console.log(`[email] Email enviado com sucesso. id=${result.data?.id}`);
+  console.log(`[email] Lembrete enviado com sucesso. id=${result.data?.id}`);
 }
 
 export async function sendSessionLinkEmail(params: {

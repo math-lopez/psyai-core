@@ -223,6 +223,49 @@ export class SessionRepository {
     return count ?? 0;
   }
 
+  async findPsychologistsWithReminderEnabled() {
+    const { data, error } = await this.supabase
+      .from('profiles')
+      .select('id, reminder_days_before, reminder_time')
+      .eq('reminder_enabled', true);
+
+    if (error) throw error;
+    return (data ?? []) as Array<{ id: string; reminder_days_before: number; reminder_time: number }>;
+  }
+
+  async findSessionsNeedingReminder(daysBefore: number, psychologistIds: string[]) {
+    const target = new Date();
+    target.setDate(target.getDate() + daysBefore);
+    const start = new Date(target.getFullYear(), target.getMonth(), target.getDate(), 0, 0, 0).toISOString();
+    const end = new Date(target.getFullYear(), target.getMonth(), target.getDate(), 23, 59, 59).toISOString();
+
+    const { data, error } = await this.supabase
+      .from('sessions')
+      .select('id, session_date, psychologist_id, patient:patients(full_name, email)')
+      .in('psychologist_id', psychologistIds)
+      .neq('status', 'cancelled')
+      .is('reminder_sent_at', null)
+      .gte('session_date', start)
+      .lte('session_date', end);
+
+    if (error) throw error;
+    return (data ?? []) as unknown as Array<{
+      id: string;
+      session_date: string;
+      psychologist_id: string;
+      patient: { full_name: string; email: string } | null;
+    }>;
+  }
+
+  async markReminderSent(sessionId: string) {
+    const { error } = await this.supabase
+      .from('sessions')
+      .update({ reminder_sent_at: new Date().toISOString() })
+      .eq('id', sessionId);
+
+    if (error) throw error;
+  }
+
   async getSessionAIAnalysis(sessionId: string) {
     const { data, error } = await this.supabase
       .from('session_ai_analysis')
