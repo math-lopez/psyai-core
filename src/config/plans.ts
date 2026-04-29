@@ -7,6 +7,7 @@ export interface PlanLimits {
   maxSessionsPerMonth: number;
   maxVideoCallsPerMonth: number;
   maxTranscriptionsPerMonth: number;
+  maxSynthesesPerMonth: number;
   hasTherapeuticInsights: boolean;
   description: string;
 }
@@ -19,6 +20,7 @@ export const PLAN_LIMITS: Record<SubscriptionTier, PlanLimits> = {
     maxSessionsPerMonth: 5,
     maxVideoCallsPerMonth: 0,
     maxTranscriptionsPerMonth: 0,
+    maxSynthesesPerMonth: 0,
     hasTherapeuticInsights: false,
     description: 'Ideal para experimentação e início de carreira.',
   },
@@ -29,6 +31,7 @@ export const PLAN_LIMITS: Record<SubscriptionTier, PlanLimits> = {
     maxSessionsPerMonth: 28,
     maxVideoCallsPerMonth: 5,
     maxTranscriptionsPerMonth: 5,
+    maxSynthesesPerMonth: 0,
     hasTherapeuticInsights: false,
     description: 'Para profissionais que estão começando a crescer.',
   },
@@ -39,7 +42,8 @@ export const PLAN_LIMITS: Record<SubscriptionTier, PlanLimits> = {
     maxSessionsPerMonth: 50,
     maxVideoCallsPerMonth: 30,
     maxTranscriptionsPerMonth: 30,
-    hasTherapeuticInsights: false,
+    maxSynthesesPerMonth: 10,
+    hasTherapeuticInsights: true,
     description: 'Gestão completa para clínicas em ritmo acelerado.',
   },
   ultra: {
@@ -49,6 +53,7 @@ export const PLAN_LIMITS: Record<SubscriptionTier, PlanLimits> = {
     maxSessionsPerMonth: Infinity,
     maxVideoCallsPerMonth: Infinity,
     maxTranscriptionsPerMonth: Infinity,
+    maxSynthesesPerMonth: 50,
     hasTherapeuticInsights: true,
     description: 'Liberdade total e inteligência artificial avançada.',
   },

@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { AnalysisRepository } from "./analysis.repository";
 import { AnalysisProcessor } from "./analysis.processor";
 import { PatientAIAnalysis, RequestPatientAnalysisResult, SynthesisResult } from "./analysis.types";
+import { PLAN_LIMITS, SubscriptionTier } from "../../config/plans";
 
 export class AnalysisService {
   private readonly repository: AnalysisRepository;
@@ -82,10 +83,47 @@ export class AnalysisService {
     };
   }
 
+  private async assertSynthesisQuota(psychologistId: string): Promise<void> {
+    const { data: profile } = await this.fastify.supabaseAdmin
+      .from("profiles")
+      .select("subscription_tier")
+      .eq("id", psychologistId)
+      .single();
+
+    const tier = (profile?.subscription_tier ?? "free") as SubscriptionTier;
+    const limit = PLAN_LIMITS[tier]?.maxSynthesesPerMonth ?? 0;
+
+    if (limit === 0) {
+      throw this.fastify.httpErrors.forbidden(
+        "Síntese IA está disponível apenas nos planos Profissional e Ultra.",
+      );
+    }
+
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const { count } = await this.fastify.supabaseAdmin
+      .from("patient_ai_analyses")
+      .select("id", { count: "exact", head: true })
+      .eq("psychologist_id", psychologistId)
+      .eq("status", "completed")
+      .gte("completed_at", startOfMonth.toISOString())
+      .contains("result_json", { type: "synthesis" });
+
+    if ((count ?? 0) >= limit) {
+      throw this.fastify.httpErrors.tooManyRequests(
+        `Limite de ${limit} sínteses por mês atingido para o seu plano.`,
+      );
+    }
+  }
+
   async synthesizePatient(
     patientId: string,
     psychologistId: string,
   ): Promise<SynthesisResult> {
+    await this.assertSynthesisQuota(psychologistId);
+
     const patient = await this.repository.findPatientById(patientId, psychologistId);
     if (!patient) {
       throw this.fastify.httpErrors.notFound(

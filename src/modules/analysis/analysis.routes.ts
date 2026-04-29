@@ -12,6 +12,23 @@ const analysisRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
 
   fastify.addHook("preHandler", fastify.authenticate);
 
+  fastify.get("/v1/analysis/synthesis-usage", async (request, reply) => {
+    const psychologistId = request.authUser.id;
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const { count } = await fastify.supabaseAdmin
+      .from("patient_ai_analyses")
+      .select("id", { count: "exact", head: true })
+      .eq("psychologist_id", psychologistId)
+      .eq("status", "completed")
+      .gte("completed_at", startOfMonth.toISOString())
+      .contains("result_json", { type: "synthesis" });
+
+    return reply.send({ data: { used: count ?? 0 } });
+  });
+
   fastify.get(
     "/v1/patients/:patientId/analysis/latest",
     {
