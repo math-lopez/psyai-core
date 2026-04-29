@@ -5,8 +5,7 @@ import { WhatsappInstance } from "./whatsapp.types";
 export class WhatsappService {
   constructor(private readonly fastify: FastifyInstance) {}
 
-  private instanceName(psychologistId: string): string {
-    // Nome único e estável por psicólogo
+  instanceName(psychologistId: string): string {
     return `psyai_${psychologistId.replace(/-/g, "").slice(0, 16)}`;
   }
 
@@ -19,12 +18,16 @@ export class WhatsappService {
     return data;
   }
 
-  async connect(psychologistId: string): Promise<{ base64: string; code: string }> {
+  async connect(psychologistId: string): Promise<void> {
     const name = this.instanceName(psychologistId);
 
-    const qr = await evolution.createOrGetQR(name);
+    // Cria instância com webhook configurado — o QR chega via webhook
+    try {
+      await evolution.createInstance(name);
+    } catch {
+      // Instância já existe — Evolution API vai reenviar o QR via webhook ao reconectar
+    }
 
-    // Persiste o registro no banco
     await this.fastify.supabaseAdmin
       .from("whatsapp_instances")
       .upsert(
@@ -32,12 +35,53 @@ export class WhatsappService {
           psychologist_id: psychologistId,
           instance_name: name,
           connected: false,
+          qr_code: null,
+          qr_updated_at: null,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "psychologist_id" },
       );
+  }
 
-    return qr;
+  async getQR(psychologistId: string): Promise<{ qr_code: string | null; connected: boolean }> {
+    const record = await this.getConnection(psychologistId);
+    return {
+      qr_code: record?.qr_code ?? null,
+      connected: record?.connected ?? false,
+    };
+  }
+
+  // Chamado pelo webhook da Evolution API
+  async handleWebhook(instanceName: string, event: string, data: any): Promise<void> {
+    if (event === "QRCODE_UPDATED") {
+      const qrBase64 = data?.qrcode?.base64 ?? null;
+      if (!qrBase64) return;
+
+      await this.fastify.supabaseAdmin
+        .from("whatsapp_instances")
+        .update({
+          qr_code: qrBase64,
+          qr_updated_at: new Date().toISOString(),
+          connected: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("instance_name", instanceName);
+    }
+
+    if (event === "CONNECTION_UPDATE") {
+      const state = data?.state;
+      const connected = state === "open";
+
+      await this.fastify.supabaseAdmin
+        .from("whatsapp_instances")
+        .update({
+          connected,
+          qr_code: connected ? null : undefined, // limpa o QR ao conectar
+          connected_at: connected ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("instance_name", instanceName);
+    }
   }
 
   async syncStatus(psychologistId: string): Promise<WhatsappInstance | null> {
@@ -71,9 +115,7 @@ export class WhatsappService {
 
     try {
       await evolution.deleteInstance(record.instance_name);
-    } catch {
-      // Ignora se já não existe na Evolution API
-    }
+    } catch {}
 
     await this.fastify.supabaseAdmin
       .from("whatsapp_instances")
@@ -88,9 +130,7 @@ export class WhatsappService {
     sessionDate: Date;
   }): Promise<void> {
     const record = await this.getConnection(params.psychologistId);
-    if (!record?.connected) {
-      throw new Error("WhatsApp não conectado para este psicólogo");
-    }
+    if (!record?.connected) throw new Error("WhatsApp não conectado");
 
     const hora = params.sessionDate.toLocaleTimeString("pt-BR", {
       hour: "2-digit",

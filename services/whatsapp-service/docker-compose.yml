@@ -1,0 +1,28 @@
+services:
+  evolution-db:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: evolution
+      POSTGRES_DB: evolution
+    volumes:
+      - evolution-db-data:/var/lib/postgresql/data
+
+  evolution-api:
+    image: atendai/evolution-api:latest
+    ports:
+      - "8080:8080"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    env_file:
+      - .env
+    environment:
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://postgres:evolution@evolution-db:5432/evolution
+      SERVER_URL: http://localhost:8080
+    depends_on:
+      - evolution-db
+
+volumes:
+  evolution-db-data:
