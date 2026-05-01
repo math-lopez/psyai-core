@@ -3,8 +3,5 @@
   "build": {
     "builder": "NIXPACKS",
     "buildCommand": "npm install"
-  },
-  "deploy": {
-    "startCommand": "node -e \"setInterval(()=>{},1e9)\""
   }
 }
