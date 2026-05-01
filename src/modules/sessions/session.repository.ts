@@ -189,10 +189,9 @@ export class SessionRepository {
     return data?.subscription_tier ?? 'free';
   }
 
-  async countSessionsThisMonth(psychologistId: string) {
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+  async countSessionsInMonth(psychologistId: string, year: number, month: number) {
+    const firstDay = new Date(year, month, 1).toISOString();
+    const lastDay = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
 
     const { count, error } = await this.supabase
       .from('sessions')

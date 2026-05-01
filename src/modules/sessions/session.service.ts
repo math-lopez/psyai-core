@@ -58,7 +58,17 @@ export class SessionService {
     return this.repository.getSessionAIAnalysis(sessionId);
   }
 
-  async analyzeSessionAI(sessionId: string, _psychologistId: string, userToken?: string) {
+  async analyzeSessionAI(sessionId: string, psychologistId: string, userToken?: string) {
+    const tier = (await this.repository.getSubscriptionTier(psychologistId)) as SubscriptionTier;
+    const safeTier = PLAN_LIMITS[tier] ? tier : 'free';
+
+    if (!PLAN_LIMITS[safeTier].hasTherapeuticInsights) {
+      throw makeHttpError(
+        403,
+        `Insights terapêuticos não estão disponíveis no plano ${PLAN_LIMITS[safeTier].name}. Faça upgrade para o Profissional ou superior.`
+      );
+    }
+
     const { data, error } = await this.app.supabase.functions.invoke('analyze-session-v2', {
       body: { sessionId },
       headers: userToken ? { Authorization: `Bearer ${userToken}` } : undefined,
@@ -86,7 +96,12 @@ export class SessionService {
     const limit = PLAN_LIMITS[safeTier].maxSessionsPerMonth;
 
     if (limit !== Infinity) {
-      const currentCount = await this.repository.countSessionsThisMonth(psychologistId);
+      const targetDate = new Date(payload.session_date);
+      const currentCount = await this.repository.countSessionsInMonth(
+        psychologistId,
+        targetDate.getFullYear(),
+        targetDate.getMonth()
+      );
       if (currentCount >= limit) {
         throw makeHttpError(
           403,
@@ -156,17 +171,23 @@ export class SessionService {
     }
 
     if (limit !== Infinity) {
-      const currentCount = await this.repository.countSessionsThisMonth(psychologistId);
-      const thisMonthRows = rows.filter((r) => {
-        const d = new Date(r.session_date);
-        const now = new Date();
-        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-      });
-      if (currentCount + thisMonthRows.length > limit) {
-        throw makeHttpError(
-          403,
-          `Limite atingido! Seu plano ${PLAN_LIMITS[safeTier].name} permite apenas ${limit} sessões por mês. Faça um upgrade para continuar.`
-        );
+      // Agrupa sessões recorrentes por mês e verifica cada mês individualmente
+      const countByMonth = new Map<string, number>();
+      for (const row of rows) {
+        const d = new Date(row.session_date);
+        const key = `${d.getFullYear()}-${d.getMonth()}`;
+        countByMonth.set(key, (countByMonth.get(key) ?? 0) + 1);
+      }
+
+      for (const [key, newCount] of countByMonth.entries()) {
+        const [year, month] = key.split('-').map(Number);
+        const existing = await this.repository.countSessionsInMonth(psychologistId, year, month);
+        if (existing + newCount > limit) {
+          throw makeHttpError(
+            403,
+            `Limite atingido! Seu plano ${PLAN_LIMITS[safeTier].name} permite apenas ${limit} sessões por mês. Faça um upgrade para continuar.`
+          );
+        }
       }
     }
 
