@@ -1,0 +1,9 @@
+{
+  "name": "railway-scheduler",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start-services": "node railway-start.js",
+    "stop-services": "node railway-stop.js"
+  }
+}
