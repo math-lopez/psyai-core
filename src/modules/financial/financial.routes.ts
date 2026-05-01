@@ -47,6 +47,12 @@ const financialRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => 
     return reply.status(201).send({ data });
   });
 
+  fastify.post("/v1/financial/charges/:id/send-email", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    await service.sendChargeEmail(id, request.authUser.id);
+    return reply.send({ success: true });
+  });
+
   fastify.patch("/v1/financial/charges/:id/status", async (request, reply) => {
     const { id } = request.params as { id: string };
     const { status } = request.body as { status: string };

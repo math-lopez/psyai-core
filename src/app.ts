@@ -22,6 +22,7 @@ import { treatmentRoutes } from "./modules/treatment/treatment.routes";
 import { featuresRoutes } from "./modules/features/features.routes";
 import livekitRoutes from "./modules/livekit/livekit.routes";
 import financialRoutes from "./modules/financial/financial.routes";
+import financialPublicRoutes from "./modules/financial/financial.public.routes";
 import testRoutes from "./modules/tests/test.routes";
 
 export async function buildApp() {
@@ -130,6 +131,7 @@ export async function buildApp() {
   await app.register(authPlugin);
 
   await app.register(patientActivateRoutes);
+  await app.register(financialPublicRoutes);
   await app.register(patientRoutes);
   await app.register(sessionRoutes);
   await app.register(storageRoutes);

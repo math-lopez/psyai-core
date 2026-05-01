@@ -47,6 +47,27 @@ export class FinancialRepository {
     return data ?? [];
   }
 
+  async findPublicCharge(id: string) {
+    const { data, error } = await this.supabase
+      .from('financial_charges')
+      .select('id, amount, description, due_date, status, psychologist_id')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    return data as { id: string; amount: number; description: string | null; due_date: string | null; status: string; psychologist_id: string } | null;
+  }
+
+  async findChargeById(id: string, psychologistId: string) {
+    const { data, error } = await this.supabase
+      .from('financial_charges')
+      .select('*, patient:patients(id, full_name, email)')
+      .eq('id', id)
+      .eq('psychologist_id', psychologistId)
+      .maybeSingle();
+    if (error) throw error;
+    return data as (FinancialCharge & { patient: { id: string; full_name: string; email: string } | null }) | null;
+  }
+
   async createCharge(
     psychologistId: string,
     payload: Pick<FinancialCharge, "patient_id" | "session_id" | "amount" | "description" | "due_date" | "notes">,

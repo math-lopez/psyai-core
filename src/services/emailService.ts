@@ -1,6 +1,8 @@
 import { Resend } from 'resend';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import QRCode from 'qrcode';
+import { buildPixPayload } from '../lib/pix';
 
 export async function sendSessionReminderEmail(params: {
   patientName: string;
@@ -266,4 +268,145 @@ export async function sendSessionLinkEmail(params: {
   }
 
   console.log(`[email] Link de sessão enviado com sucesso. id=${result.data?.id}`);
+}
+
+export async function sendChargeEmail(params: {
+  patientName: string;
+  patientEmail: string;
+  psychologistName: string;
+  amount: number;
+  description: string | null;
+  dueDate: string | null;
+  pixKey: string;
+  beneficiaryName: string;
+  chargeId: string;
+}) {
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const FROM = process.env.RESEND_FROM_EMAIL || 'noreply@psiai.com.br';
+  const { patientName, patientEmail, psychologistName, amount, description, dueDate, pixKey, beneficiaryName, chargeId } = params;
+
+  const pixPayload = buildPixPayload({ pixKey, merchantName: beneficiaryName, amount });
+  const qrBuffer   = await QRCode.toBuffer(pixPayload, { width: 240, margin: 2, color: { dark: '#000000', light: '#ffffff' } });
+
+  const formattedAmount = amount.toFixed(2).replace('.', ',');
+  const formattedDue    = dueDate ? format(new Date(dueDate), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : null;
+
+  const frontendUrl = process.env.FRONTEND_URL || 'https://psiai.com.br';
+  const payPageUrl  = `${frontendUrl}/pagar?id=${chargeId}`;
+
+  console.log(`[email] Enviando cobrança PIX para ${patientEmail}`);
+
+  const result = await resend.emails.send({
+    from: `${psychologistName} via PsiAI <${FROM}>`,
+    to: patientEmail,
+    subject: `Cobrança de R$ ${formattedAmount} — ${psychologistName}`,
+    attachments: [
+      {
+        filename: 'qrcode.png',
+        content: qrBuffer.toString('base64'),
+        contentType: 'image/png',
+        contentId: 'qrcode',
+      },
+    ],
+    html: `
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+      <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
+      <body style="margin:0;padding:0;background:#f8fafc;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:40px 20px;">
+          <tr>
+            <td align="center">
+              <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+
+                <!-- Header -->
+                <tr>
+                  <td style="background:#4f46e5;padding:32px 40px;text-align:center;">
+                    <p style="margin:0;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">PsiAI</p>
+                    <p style="margin:6px 0 0;font-size:12px;color:#a5b4fc;font-weight:500;">Plataforma para Psicólogos</p>
+                  </td>
+                </tr>
+
+                <!-- Body -->
+                <tr>
+                  <td style="padding:40px 40px 32px;">
+                    <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:1px;">Cobrança recebida</p>
+                    <h1 style="margin:0 0 6px;font-size:26px;font-weight:900;color:#0f172a;">Olá, ${patientName}!</h1>
+                    <p style="margin:0 0 32px;font-size:15px;color:#475569;line-height:1.6;">
+                      <strong style="color:#0f172a;">${psychologistName}</strong> enviou uma cobrança para você. Pague pelo PIX abaixo.
+                    </p>
+
+                    <!-- Valor e detalhes -->
+                    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5ff;border-radius:16px;margin-bottom:28px;">
+                      <tr>
+                        <td style="padding:24px 28px;">
+                          <p style="margin:0 0 4px;font-size:11px;font-weight:800;color:#818cf8;text-transform:uppercase;letter-spacing:1px;">Valor</p>
+                          <p style="margin:0 0 ${description || formattedDue ? '16px' : '0'};font-size:28px;font-weight:900;color:#1e1b4b;">R$ ${formattedAmount}</p>
+                          ${description ? `
+                          <p style="margin:0 0 4px;font-size:11px;font-weight:800;color:#818cf8;text-transform:uppercase;letter-spacing:1px;">Descrição</p>
+                          <p style="margin:0 ${formattedDue ? '0 16px' : '0'};font-size:14px;color:#374151;">${description}</p>
+                          ` : ''}
+                          ${formattedDue ? `
+                          <p style="margin:0 0 4px;font-size:11px;font-weight:800;color:#818cf8;text-transform:uppercase;letter-spacing:1px;">Vencimento</p>
+                          <p style="margin:0;font-size:14px;font-weight:700;color:#374151;">${formattedDue}</p>
+                          ` : ''}
+                        </td>
+                      </tr>
+                    </table>
+
+                    <!-- QR Code -->
+                    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+                      <tr>
+                        <td align="center">
+                          <p style="margin:0 0 16px;font-size:13px;font-weight:700;color:#374151;">Escaneie o QR Code com o app do seu banco</p>
+                          <img src="cid:qrcode" width="200" height="200" alt="QR Code PIX" style="display:block;border-radius:12px;" />
+                        </td>
+                      </tr>
+                    </table>
+
+                    <!-- Botão copiar (abre página no celular) -->
+                    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+                      <tr>
+                        <td align="center">
+                          <a href="${payPageUrl}" style="display:inline-block;background:#4f46e5;color:#ffffff;font-weight:900;font-size:15px;text-decoration:none;padding:16px 40px;border-radius:16px;letter-spacing:0.3px;">
+                            Toque aqui para copiar o código PIX →
+                          </a>
+                          <p style="margin:10px 0 0;font-size:11px;color:#94a3b8;">Abre uma página com botão de cópia — ideal no celular.</p>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <!-- Copia e cola -->
+                    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:28px;">
+                      <tr>
+                        <td style="padding:16px 20px;">
+                          <p style="margin:0 0 8px;font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:1px;">Pix Copia e Cola</p>
+                          <p style="margin:0;font-size:11px;color:#475569;word-break:break-all;line-height:1.6;font-family:monospace;">${pixPayload}</p>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;text-align:center;">
+                      Abra o app do seu banco → PIX → Copia e Cola → cole o código acima.
+                    </p>
+                  </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                  <td style="background:#f8fafc;padding:24px 40px;text-align:center;border-top:1px solid #f1f5f9;">
+                    <p style="margin:0;font-size:11px;color:#cbd5e1;">Este é um e-mail automático, por favor não responda.</p>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `,
+  });
+
+  if (result.error) throw new Error(`Resend error: ${result.error.message}`);
+  console.log(`[email] Cobrança PIX enviada com sucesso. id=${result.data?.id}`);
 }
