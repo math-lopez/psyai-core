@@ -6,6 +6,20 @@ const financialRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => 
 
   fastify.addHook("preHandler", fastify.authenticate);
 
+  fastify.get("/v1/financial/asaas/status", async (request, reply) => {
+    const data = await service.getAsaasStatus(request.authUser.id);
+    return reply.send({ data });
+  });
+
+  fastify.post("/v1/financial/asaas/connect", async (request, reply) => {
+    const body = request.body as any;
+    const required = ['name','email','cpfCnpj','mobilePhone','incomeValue','address','addressNumber','province','postalCode'];
+    const missing = required.filter((f) => !body?.[f]);
+    if (missing.length) return reply.status(400).send({ message: `Campos obrigatórios: ${missing.join(', ')}` });
+    const data = await service.connectAsaas(request.authUser.id, body);
+    return reply.send({ data });
+  });
+
   fastify.get("/v1/financial/settings", async (request, reply) => {
     const data = await service.getSettings(request.authUser.id);
     return reply.send({ data });
@@ -45,6 +59,12 @@ const financialRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => 
       notes: body.notes ?? null,
     });
     return reply.status(201).send({ data });
+  });
+
+  fastify.post("/v1/financial/charges/:id/sync-asaas", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const data = await service.syncChargeWithAsaas(id, request.authUser.id);
+    return reply.send({ data });
   });
 
   fastify.post("/v1/financial/charges/:id/send-email", async (request, reply) => {

@@ -277,16 +277,31 @@ export async function sendChargeEmail(params: {
   amount: number;
   description: string | null;
   dueDate: string | null;
-  pixKey: string;
-  beneficiaryName: string;
   chargeId: string;
+  // PIX manual (fallback)
+  pixKey?: string;
+  beneficiaryName?: string;
+  // PIX do Asaas (preferencial)
+  asaasPixPayload?: string;
+  asaasQrBase64?: string;
 }) {
   const resend = new Resend(process.env.RESEND_API_KEY);
   const FROM = process.env.RESEND_FROM_EMAIL || 'noreply@psiai.com.br';
-  const { patientName, patientEmail, psychologistName, amount, description, dueDate, pixKey, beneficiaryName, chargeId } = params;
+  const { patientName, patientEmail, psychologistName, amount, description, dueDate, chargeId } = params;
 
-  const pixPayload = buildPixPayload({ pixKey, merchantName: beneficiaryName, amount });
-  const qrBuffer   = await QRCode.toBuffer(pixPayload, { width: 240, margin: 2, color: { dark: '#000000', light: '#ffffff' } });
+  // Usa dados do Asaas se disponíveis, senão gera PIX manual
+  let pixPayload: string;
+  let qrBuffer: Buffer;
+
+  if (params.asaasPixPayload && params.asaasQrBase64) {
+    pixPayload = params.asaasPixPayload;
+    qrBuffer   = Buffer.from(params.asaasQrBase64, 'base64');
+  } else if (params.pixKey && params.beneficiaryName) {
+    pixPayload = buildPixPayload({ pixKey: params.pixKey, merchantName: params.beneficiaryName, amount });
+    qrBuffer   = await QRCode.toBuffer(pixPayload, { width: 240, margin: 2, color: { dark: '#000000', light: '#ffffff' } });
+  } else {
+    throw new Error('Nenhuma fonte de dados PIX disponível para o email');
+  }
 
   const formattedAmount = amount.toFixed(2).replace('.', ',');
   const formattedDue    = dueDate ? format(new Date(dueDate), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : null;

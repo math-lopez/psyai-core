@@ -50,11 +50,83 @@ export class FinancialRepository {
   async findPublicCharge(id: string) {
     const { data, error } = await this.supabase
       .from('financial_charges')
-      .select('id, amount, description, due_date, status, psychologist_id')
+      .select('id, amount, description, due_date, status, psychologist_id, asaas_payment_id')
       .eq('id', id)
       .maybeSingle();
     if (error) throw error;
-    return data as { id: string; amount: number; description: string | null; due_date: string | null; status: string; psychologist_id: string } | null;
+    return data as { id: string; amount: number; description: string | null; due_date: string | null; status: string; psychologist_id: string; asaas_payment_id: string | null } | null;
+  }
+
+  async findAsaasApiKey(psychologistId: string): Promise<string | null> {
+    const { data, error } = await this.supabase
+      .from('profiles')
+      .select('asaas_api_key')
+      .eq('id', psychologistId)
+      .maybeSingle();
+    if (error) throw error;
+    return data?.asaas_api_key ?? null;
+  }
+
+  async saveAsaasApiKey(psychologistId: string, apiKey: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('profiles')
+      .update({ asaas_api_key: apiKey })
+      .eq('id', psychologistId);
+    if (error) throw error;
+  }
+
+  async findPatientAsaasCustomerId(patientId: string): Promise<string | null> {
+    const { data, error } = await this.supabase
+      .from('patients')
+      .select('asaas_customer_id, full_name, email')
+      .eq('id', patientId)
+      .maybeSingle();
+    if (error) throw error;
+    return data?.asaas_customer_id ?? null;
+  }
+
+  async findPatientBasic(patientId: string): Promise<{ full_name: string; email: string; cpf: string | null } | null> {
+    const { data, error } = await this.supabase
+      .from('patients')
+      .select('full_name, email, cpf')
+      .eq('id', patientId)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
+  async savePatientAsaasCustomerId(patientId: string, customerId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('patients')
+      .update({ asaas_customer_id: customerId })
+      .eq('id', patientId);
+    if (error) throw error;
+  }
+
+  async updateChargeAsaasPaymentId(chargeId: string, asaasPaymentId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('financial_charges')
+      .update({ asaas_payment_id: asaasPaymentId })
+      .eq('id', chargeId);
+    if (error) throw error;
+  }
+
+  async findChargeByAsaasPaymentId(asaasPaymentId: string): Promise<{ id: string } | null> {
+    const { data, error } = await this.supabase
+      .from('financial_charges')
+      .select('id')
+      .eq('asaas_payment_id', asaasPaymentId)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
+  async updateStatusById(chargeId: string, status: string, paidAt: string | null): Promise<void> {
+    const { error } = await this.supabase
+      .from('financial_charges')
+      .update({ status, ...(paidAt ? { paid_at: paidAt } : {}) })
+      .eq('id', chargeId);
+    if (error) throw error;
   }
 
   async findChargeById(id: string, psychologistId: string) {

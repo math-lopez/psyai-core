@@ -26,6 +26,7 @@ export interface FinancialCharge {
   status: ChargeStatus;
   paid_at: string | null;
   notes: string | null;
+  asaas_payment_id: string | null;
   created_at: string;
   updated_at: string;
   patient?: { id: string; full_name: string };
