@@ -50,11 +50,11 @@ export class FinancialRepository {
   async findPublicCharge(id: string) {
     const { data, error } = await this.supabase
       .from('financial_charges')
-      .select('id, amount, description, due_date, status, psychologist_id, asaas_payment_id')
+      .select('id, amount, description, due_date, status, psychologist_id, asaas_payment_id, asaas_invoice_url')
       .eq('id', id)
       .maybeSingle();
     if (error) throw error;
-    return data as { id: string; amount: number; description: string | null; due_date: string | null; status: string; psychologist_id: string; asaas_payment_id: string | null } | null;
+    return data as { id: string; amount: number; description: string | null; due_date: string | null; status: string; psychologist_id: string; asaas_payment_id: string | null; asaas_invoice_url: string | null } | null;
   }
 
   async findAsaasApiKey(psychologistId: string): Promise<string | null> {
@@ -103,10 +103,10 @@ export class FinancialRepository {
     if (error) throw error;
   }
 
-  async updateChargeAsaasPaymentId(chargeId: string, asaasPaymentId: string): Promise<void> {
+  async updateChargeAsaasPaymentId(chargeId: string, asaasPaymentId: string, invoiceUrl?: string): Promise<void> {
     const { error } = await this.supabase
       .from('financial_charges')
-      .update({ asaas_payment_id: asaasPaymentId })
+      .update({ asaas_payment_id: asaasPaymentId, ...(invoiceUrl ? { asaas_invoice_url: invoiceUrl } : {}) })
       .eq('id', chargeId);
     if (error) throw error;
   }

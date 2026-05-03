@@ -79,24 +79,30 @@ export async function updateAsaasCustomer(
 
 // ── Pagamentos ────────────────────────────────────────────────────────────────
 
+export type BillingType = 'UNDEFINED' | 'PIX' | 'BOLETO' | 'CREDIT_CARD';
+
 export interface AsaasPaymentResult {
   id: string;
   status: string;
   invoiceUrl: string;
 }
 
-export async function createAsaasPixPayment(
+export async function createAsaasPayment(
   apiKey: string,
   payment: {
     customer: string;
     value: number;
     dueDate: string;
     description?: string;
+    billingType?: BillingType;
   },
 ): Promise<AsaasPaymentResult> {
   return asaasRequest<AsaasPaymentResult>(apiKey, 'POST', '/payments', {
-    ...payment,
-    billingType: 'PIX',
+    customer:    payment.customer,
+    value:       payment.value,
+    dueDate:     payment.dueDate,
+    description: payment.description,
+    billingType: payment.billingType ?? 'UNDEFINED',
   });
 }
 

@@ -9,7 +9,7 @@ import {
   CreateSubAccountInput,
   createAsaasCustomer,
   updateAsaasCustomer,
-  createAsaasPixPayment,
+  createAsaasPayment,
   getAsaasPixQrCode,
   cancelAsaasPayment,
   asaasStatusToInternal,
@@ -119,14 +119,14 @@ if (asaasKey && Number(payload.amount) < 5) {
       ? payload.due_date.slice(0, 10)
       : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-    const payment = await createAsaasPixPayment(apiKey, {
-      customer: customerId,
-      value: Number(payload.amount),
+    const payment = await createAsaasPayment(apiKey, {
+      customer:    customerId,
+      value:       Number(payload.amount),
       dueDate,
       description: payload.description ?? undefined,
     });
 
-    await this.repository.updateChargeAsaasPaymentId(chargeId, payment.id);
+    await this.repository.updateChargeAsaasPaymentId(chargeId, payment.id, payment.invoiceUrl);
   }
 
   async updateStatus(
@@ -197,7 +197,20 @@ if (asaasKey && Number(payload.amount) < 5) {
     if (charge.status === 'cancelled') throw this.fastify.httpErrors.gone('Esta cobrança foi cancelada');
     if (charge.status === 'paid')      throw this.fastify.httpErrors.gone('Esta cobrança já foi paga');
 
-    // Se tiver pagamento Asaas, busca QR diretamente de lá
+    // Se tiver invoiceUrl, retorna para redirecionar o paciente para a página do Asaas
+    if ((charge as any).asaas_invoice_url) {
+      const settings = await this.repository.findSettings(charge.psychologist_id);
+      return {
+        amount:       Number(charge.amount),
+        description:  charge.description,
+        due_date:     charge.due_date,
+        status:       charge.status,
+        psychologist: settings?.beneficiary_name ?? '',
+        invoice_url:  (charge as any).asaas_invoice_url,
+      };
+    }
+
+    // Fallback: busca QR PIX pelo payment_id
     if (charge.asaas_payment_id) {
       const apiKey = await this.repository.findAsaasApiKey(charge.psychologist_id);
       if (apiKey) {
@@ -211,7 +224,7 @@ if (asaasKey && Number(payload.amount) < 5) {
             status:       charge.status,
             psychologist: settings?.beneficiary_name ?? '',
             pix_payload:  pix.payload,
-            pix_qr_image: pix.encodedImage, // base64 PNG já gerado pelo Asaas
+            pix_qr_image: pix.encodedImage,
           };
         } catch (err) {
           this.fastify.log.warn({ err }, '[asaas] Falha ao buscar QR do Asaas, usando fallback PIX manual');
@@ -287,8 +300,11 @@ if (asaasKey && Number(payload.amount) < 5) {
       chargeId,
     };
 
-    // Tenta usar QR do Asaas
-    if (charge.asaas_payment_id) {
+    // Se tiver invoiceUrl, usa ela como link principal no email
+    if ((charge as any).asaas_invoice_url) {
+      emailParams.invoiceUrl = (charge as any).asaas_invoice_url;
+    } else if (charge.asaas_payment_id) {
+      // Fallback: busca QR PIX
       const apiKey = await this.repository.findAsaasApiKey(psychologistId);
       if (apiKey) {
         try {

@@ -278,29 +278,35 @@ export async function sendChargeEmail(params: {
   description: string | null;
   dueDate: string | null;
   chargeId: string;
-  // PIX manual (fallback)
-  pixKey?: string;
-  beneficiaryName?: string;
-  // PIX do Asaas (preferencial)
+  // Link Asaas (preferencial — paciente escolhe o método)
+  invoiceUrl?: string;
+  // PIX do Asaas (fallback)
   asaasPixPayload?: string;
   asaasQrBase64?: string;
+  // PIX manual (último fallback)
+  pixKey?: string;
+  beneficiaryName?: string;
 }) {
   const resend = new Resend(process.env.RESEND_API_KEY);
   const FROM = process.env.RESEND_FROM_EMAIL || 'noreply@psiai.com.br';
   const { patientName, patientEmail, psychologistName, amount, description, dueDate, chargeId } = params;
 
-  // Usa dados do Asaas se disponíveis, senão gera PIX manual
-  let pixPayload: string;
-  let qrBuffer: Buffer;
+  // Se tiver invoiceUrl, o email usa só o link — sem QR
+  const useInvoiceUrl = !!params.invoiceUrl;
 
-  if (params.asaasPixPayload && params.asaasQrBase64) {
-    pixPayload = params.asaasPixPayload;
-    qrBuffer   = Buffer.from(params.asaasQrBase64, 'base64');
-  } else if (params.pixKey && params.beneficiaryName) {
-    pixPayload = buildPixPayload({ pixKey: params.pixKey, merchantName: params.beneficiaryName, amount });
-    qrBuffer   = await QRCode.toBuffer(pixPayload, { width: 240, margin: 2, color: { dark: '#000000', light: '#ffffff' } });
-  } else {
-    throw new Error('Nenhuma fonte de dados PIX disponível para o email');
+  let pixPayload = '';
+  let qrBuffer: Buffer | null = null;
+
+  if (!useInvoiceUrl) {
+    if (params.asaasPixPayload && params.asaasQrBase64) {
+      pixPayload = params.asaasPixPayload;
+      qrBuffer   = Buffer.from(params.asaasQrBase64, 'base64');
+    } else if (params.pixKey && params.beneficiaryName) {
+      pixPayload = buildPixPayload({ pixKey: params.pixKey, merchantName: params.beneficiaryName, amount });
+      qrBuffer   = await QRCode.toBuffer(pixPayload, { width: 240, margin: 2, color: { dark: '#000000', light: '#ffffff' } });
+    } else {
+      throw new Error('Nenhuma fonte de dados PIX disponível para o email');
+    }
   }
 
   const formattedAmount = amount.toFixed(2).replace('.', ',');
@@ -315,14 +321,14 @@ export async function sendChargeEmail(params: {
     from: `${psychologistName} via PsiAI <${FROM}>`,
     to: patientEmail,
     subject: `Cobrança de R$ ${formattedAmount} — ${psychologistName}`,
-    attachments: [
+    attachments: qrBuffer ? [
       {
         filename: 'qrcode.png',
         content: qrBuffer.toString('base64'),
         contentType: 'image/png',
         contentId: 'qrcode',
       },
-    ],
+    ] : [],
     html: `
       <!DOCTYPE html>
       <html lang="pt-BR">
@@ -347,7 +353,7 @@ export async function sendChargeEmail(params: {
                     <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:1px;">Cobrança recebida</p>
                     <h1 style="margin:0 0 6px;font-size:26px;font-weight:900;color:#0f172a;">Olá, ${patientName}!</h1>
                     <p style="margin:0 0 32px;font-size:15px;color:#475569;line-height:1.6;">
-                      <strong style="color:#0f172a;">${psychologistName}</strong> enviou uma cobrança para você. Pague pelo PIX abaixo.
+                      <strong style="color:#0f172a;">${psychologistName}</strong> enviou uma cobrança para você. ${useInvoiceUrl ? 'Escolha a forma de pagamento clicando no botão abaixo.' : 'Pague pelo PIX abaixo.'}
                     </p>
 
                     <!-- Valor e detalhes -->
@@ -368,7 +374,20 @@ export async function sendChargeEmail(params: {
                       </tr>
                     </table>
 
-                    <!-- QR Code -->
+                    ${useInvoiceUrl ? `
+                    <!-- Botão principal — link Asaas com todas as formas de pagamento -->
+                    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+                      <tr>
+                        <td align="center">
+                          <a href="${params.invoiceUrl}" style="display:inline-block;background:#4f46e5;color:#ffffff;font-weight:900;font-size:16px;text-decoration:none;padding:18px 48px;border-radius:16px;letter-spacing:0.3px;">
+                            Pagar agora →
+                          </a>
+                          <p style="margin:12px 0 0;font-size:12px;color:#94a3b8;">PIX, Boleto ou Cartão de crédito</p>
+                        </td>
+                      </tr>
+                    </table>
+                    ` : `
+                    <!-- QR Code PIX -->
                     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
                       <tr>
                         <td align="center">
@@ -378,14 +397,13 @@ export async function sendChargeEmail(params: {
                       </tr>
                     </table>
 
-                    <!-- Botão copiar (abre página no celular) -->
+                    <!-- Botão copiar -->
                     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
                       <tr>
                         <td align="center">
                           <a href="${payPageUrl}" style="display:inline-block;background:#4f46e5;color:#ffffff;font-weight:900;font-size:15px;text-decoration:none;padding:16px 40px;border-radius:16px;letter-spacing:0.3px;">
                             Toque aqui para copiar o código PIX →
                           </a>
-                          <p style="margin:10px 0 0;font-size:11px;color:#94a3b8;">Abre uma página com botão de cópia — ideal no celular.</p>
                         </td>
                       </tr>
                     </table>
@@ -403,6 +421,7 @@ export async function sendChargeEmail(params: {
                     <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;text-align:center;">
                       Abra o app do seu banco → PIX → Copia e Cola → cole o código acima.
                     </p>
+                    `}
                   </td>
                 </tr>
 
