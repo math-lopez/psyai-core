@@ -51,12 +51,13 @@ const financialRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => 
   fastify.post("/v1/financial/charges", async (request, reply) => {
     const body = request.body as any;
     const data = await service.createCharge(request.authUser.id, {
-      patient_id: body.patient_id,
-      session_id: body.session_id ?? null,
-      amount: body.amount,
-      description: body.description ?? null,
-      due_date: body.due_date ?? null,
-      notes: body.notes ?? null,
+      patient_id:   body.patient_id,
+      session_id:   body.session_id ?? null,
+      amount:       body.amount,
+      description:  body.description ?? null,
+      due_date:     body.due_date ?? null,
+      notes:        body.notes ?? null,
+      billing_type: body.billing_type ?? undefined,
     });
     return reply.status(201).send({ data });
   });
@@ -88,10 +89,11 @@ const financialRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => 
 
   fastify.post("/v1/patients/:patientId/financial/close-period", async (request, reply) => {
     const { patientId } = request.params as { patientId: string };
-    const { session_ids, session_value, description } = request.body as {
+    const { session_ids, session_value, description, billing_type } = request.body as {
       session_ids: string[];
       session_value: number;
       description: string;
+      billing_type?: string;
     };
     const data = await service.closePeriod(
       request.authUser.id,
@@ -99,6 +101,7 @@ const financialRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => 
       session_ids,
       session_value,
       description,
+      billing_type as any,
     );
     return reply.status(201).send({ data });
   });

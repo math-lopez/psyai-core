@@ -23,7 +23,8 @@ const financialPublicRoutes: FastifyPluginAsync = async (fastify: FastifyInstanc
     return reply.send({ data });
   });
 
-  // Webhook do Asaas — chamado automaticamente quando o status do pagamento muda
+  // Webhook do Asaas — responde 200 imediatamente e processa em background
+  // para evitar timeout no Vercel serverless que causa "interrompido" no Asaas
   fastify.post("/v1/webhooks/asaas", async (request, reply) => {
     const token = (request.headers['asaas-access-token'] ?? request.headers['authorization']) as string;
     const expectedToken = process.env.ASAAS_WEBHOOK_TOKEN;
@@ -31,18 +32,19 @@ const financialPublicRoutes: FastifyPluginAsync = async (fastify: FastifyInstanc
       return reply.status(401).send({ message: 'Token inválido' });
     }
 
-    const body = request.body as any;
+    const body    = request.body as any;
     const event   = body?.event as string;
     const payment = body?.payment;
 
-    if (!payment?.id || !event) return reply.status(200).send({ received: true });
+    // Responde imediatamente para o Asaas não marcar como interrompido
+    reply.status(200).send({ received: true });
+
+    // Processa em background após resposta enviada
+    if (!payment?.id || !event) return;
 
     const internalStatus = asaasStatusToInternal(payment.status);
 
-    // Apenas eventos relevantes
-    if (!['RECEIVED', 'CONFIRMED', 'OVERDUE', 'CANCELLED', 'DELETED'].includes(payment.status)) {
-      return reply.status(200).send({ received: true });
-    }
+    if (!['RECEIVED', 'CONFIRMED', 'OVERDUE', 'CANCELLED', 'DELETED'].includes(payment.status)) return;
 
     try {
       const charge = await service.findChargeByAsaasPaymentId(payment.id);
@@ -53,8 +55,6 @@ const financialPublicRoutes: FastifyPluginAsync = async (fastify: FastifyInstanc
     } catch (err) {
       fastify.log.error({ err }, '[asaas webhook] Falha ao processar evento');
     }
-
-    return reply.status(200).send({ received: true });
   });
 };
 

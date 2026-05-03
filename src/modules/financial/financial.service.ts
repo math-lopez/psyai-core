@@ -18,6 +18,7 @@ import {
   getAsaasTransfers,
   createAsaasTransfer,
   CreateTransferInput,
+  BillingType,
 } from "../../services/asaasService";
 
 export class FinancialService {
@@ -64,17 +65,15 @@ export class FinancialService {
 
   async createCharge(
     psychologistId: string,
-    payload: Pick<FinancialCharge, "patient_id" | "session_id" | "amount" | "description" | "due_date" | "notes">,
+    payload: Pick<FinancialCharge, "patient_id" | "session_id" | "amount" | "description" | "due_date" | "notes"> & { billing_type?: BillingType },
   ): Promise<FinancialCharge & { asaas_error?: string }> {
-    // Valida mínimo do Asaas antes de salvar no banco
     const asaasKey = await this.repository.findAsaasApiKey(psychologistId);
-if (asaasKey && Number(payload.amount) < 5) {
+    if (asaasKey && Number(payload.amount) < 5) {
       throw this.fastify.httpErrors.badRequest('O valor mínimo para cobranças via Asaas é R$ 5,00.');
     }
 
     const charge = await this.repository.createCharge(psychologistId, payload);
 
-    // Tenta criar o pagamento no Asaas de forma síncrona para erros visíveis
     try {
       await this.createAsaasPaymentAsync(psychologistId, charge.id, payload);
     } catch (err: any) {
@@ -88,7 +87,7 @@ if (asaasKey && Number(payload.amount) < 5) {
   private async createAsaasPaymentAsync(
     psychologistId: string,
     chargeId: string,
-    payload: Pick<FinancialCharge, "patient_id" | "amount" | "description" | "due_date">,
+    payload: Pick<FinancialCharge, "patient_id" | "amount" | "description" | "due_date"> & { billing_type?: BillingType },
   ) {
     const apiKey = await this.repository.findAsaasApiKey(psychologistId);
     if (!apiKey) return;
@@ -129,6 +128,7 @@ if (asaasKey && Number(payload.amount) < 5) {
       value:       Number(payload.amount),
       dueDate,
       description: payload.description ?? undefined,
+      billingType: payload.billing_type,
     });
 
     await this.repository.updateChargeAsaasPaymentId(chargeId, payment.id, payment.invoiceUrl);
@@ -169,6 +169,7 @@ if (asaasKey && Number(payload.amount) < 5) {
     sessionIds: string[],
     sessionValue: number,
     description: string,
+    billingType?: BillingType,
   ): Promise<FinancialCharge & { asaas_error?: string }> {
     if (!sessionIds.length) throw this.fastify.httpErrors.badRequest("Selecione ao menos uma sessão");
     const amount = Number((sessionValue * sessionIds.length).toFixed(2));
@@ -182,10 +183,11 @@ if (asaasKey && Number(payload.amount) < 5) {
 
     try {
       await this.createAsaasPaymentAsync(psychologistId, charge.id, {
-        patient_id:  charge.patient_id,
-        amount:      charge.amount,
-        description: charge.description,
-        due_date:    charge.due_date,
+        patient_id:   charge.patient_id,
+        amount:       charge.amount,
+        description:  charge.description,
+        due_date:     charge.due_date,
+        billing_type: billingType,
       });
     } catch (err: any) {
       this.fastify.log.error({ err }, '[asaas] Falha ao criar pagamento no Asaas via closePeriod');
