@@ -17,14 +17,21 @@ async function bootstrap() {
     if (app.supabase) {
       const reminder = new ReminderService(app.supabase, app.log);
 
-      // Roda a cada hora e entrega apenas para psicólogos com lembrete configurado para aquela hora
+      // Lembrete dia-antes: roda a cada hora, filtra pelo horário configurado do psicólogo
       cron.schedule('0 * * * *', () => {
         reminder.sendScheduledReminders().catch((err) => {
           app.log.error({ err }, '[cron] Falha no job de lembretes de sessão');
         });
       }, { timezone: 'America/Sao_Paulo' });
 
-      app.log.info('[cron] Job de lembretes de sessão registrado (a cada hora)');
+      // Lembrete 1h antes: roda a cada hora, verifica sessões na próxima hora
+      cron.schedule('0 * * * *', () => {
+        reminder.sendHourReminders().catch((err) => {
+          app.log.error({ err }, '[cron] Falha no job de lembrete de 1h');
+        });
+      }, { timezone: 'America/Sao_Paulo' });
+
+      app.log.info('[cron] Jobs de lembretes registrados (dia-antes + 1h antes)');
     }
   } catch (error) {
     app.log.error(error);

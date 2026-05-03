@@ -87,12 +87,12 @@ export class SessionRepository {
   async findPatientById(patientId: string) {
     const { data, error } = await this.supabase
       .from('patients')
-      .select('full_name, email')
+      .select('full_name, email, phone')
       .eq('id', patientId)
       .maybeSingle();
 
     if (error) throw error;
-    return data as { full_name: string; email: string } | null;
+    return data as { full_name: string; email: string; phone: string | null } | null;
   }
 
   async findPsychologistNameById(psychologistId: string) {
@@ -225,11 +225,57 @@ export class SessionRepository {
   async findPsychologistsWithReminderEnabled() {
     const { data, error } = await this.supabase
       .from('profiles')
-      .select('id, reminder_days_before, reminder_time')
+      .select('id, reminder_days_before, reminder_time, whatsapp_reminder_enabled')
       .eq('reminder_enabled', true);
 
     if (error) throw error;
-    return (data ?? []) as Array<{ id: string; reminder_days_before: number; reminder_time: number }>;
+    return (data ?? []) as Array<{
+      id: string;
+      reminder_days_before: number;
+      reminder_time: number;
+      whatsapp_reminder_enabled: boolean;
+    }>;
+  }
+
+  async findPsychologistsWithHourReminderEnabled() {
+    const { data, error } = await this.supabase
+      .from('profiles')
+      .select('id, whatsapp_reminder_enabled')
+      .eq('hour_reminder_enabled', true);
+
+    if (error) throw error;
+    return (data ?? []) as Array<{ id: string; whatsapp_reminder_enabled: boolean }>;
+  }
+
+  async findSessionsNeedingHourReminder(psychologistIds: string[]) {
+    const now = new Date();
+    const inOneHour = new Date(now.getTime() + 60 * 60 * 1000);
+
+    const { data, error } = await this.supabase
+      .from('sessions')
+      .select('id, session_date, psychologist_id, patient:patients(full_name, email, phone)')
+      .in('psychologist_id', psychologistIds)
+      .neq('status', 'cancelled')
+      .is('hour_reminder_sent_at', null)
+      .gte('session_date', now.toISOString())
+      .lte('session_date', inOneHour.toISOString());
+
+    if (error) throw error;
+    return (data ?? []) as unknown as Array<{
+      id: string;
+      session_date: string;
+      psychologist_id: string;
+      patient: { full_name: string; email: string; phone: string | null } | null;
+    }>;
+  }
+
+  async markHourReminderSent(sessionId: string) {
+    const { error } = await this.supabase
+      .from('sessions')
+      .update({ hour_reminder_sent_at: new Date().toISOString() })
+      .eq('id', sessionId);
+
+    if (error) throw error;
   }
 
   async findSessionsNeedingReminder(daysBefore: number, psychologistIds: string[]) {
@@ -240,7 +286,7 @@ export class SessionRepository {
 
     const { data, error } = await this.supabase
       .from('sessions')
-      .select('id, session_date, psychologist_id, patient:patients(full_name, email)')
+      .select('id, session_date, psychologist_id, patient:patients(full_name, email, phone)')
       .in('psychologist_id', psychologistIds)
       .neq('status', 'cancelled')
       .is('reminder_sent_at', null)
@@ -252,7 +298,7 @@ export class SessionRepository {
       id: string;
       session_date: string;
       psychologist_id: string;
-      patient: { full_name: string; email: string } | null;
+      patient: { full_name: string; email: string; phone: string | null } | null;
     }>;
   }
 

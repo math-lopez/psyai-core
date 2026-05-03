@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { generateToken, getRoomService } from './livekit.service';
 import { sendSessionLinkEmail } from '../../services/emailService';
+import { sendWhatsAppSessionStarted } from '../../services/twilioService';
 import { SessionRepository } from '../sessions/session.repository';
 import { PLAN_LIMITS, SubscriptionTier } from '../../config/plans';
 
@@ -74,7 +75,7 @@ export default async function livekitRoutes(app: FastifyInstance) {
     const [{ data: patient }, { data: profile }] = await Promise.all([
       app.supabase
         .from('patients')
-        .select('full_name, email')
+        .select('full_name, email, phone')
         .eq('id', session.patient_id)
         .maybeSingle(),
       app.supabase
@@ -107,7 +108,7 @@ export default async function livekitRoutes(app: FastifyInstance) {
       throw makeHttpError(500, 'Erro ao atualizar sessão com dados LiveKit');
     }
 
-    // Envia link de acesso ao paciente via Resend
+    // Envia link de acesso ao paciente via email e WhatsApp
     console.log(`[livekit/start] patient=${JSON.stringify(patient)} profile=${JSON.stringify(profile)} joinUrl=${patientJoinUrl}`);
     if (patient?.email && profile?.full_name) {
       sendSessionLinkEmail({
@@ -117,10 +118,20 @@ export default async function livekitRoutes(app: FastifyInstance) {
         joinUrl: patientJoinUrl,
       }).catch((err: Error) => {
         app.log.warn({ err }, 'Falha ao enviar email de link de sessão');
-        console.error('[email] Falha ao enviar link de sessão:', err?.message);
       });
+
+      if ((patient as any).phone) {
+        sendWhatsAppSessionStarted({
+          patientName: patient.full_name,
+          patientPhone: (patient as any).phone,
+          psychologistName: profile.full_name,
+          joinUrl: patientJoinUrl,
+        }).catch((err: Error) => {
+          app.log.warn({ err }, 'Falha ao enviar WhatsApp de início de sessão');
+        });
+      }
     } else {
-      console.warn('[livekit/start] Email não enviado: patient ou profile não encontrado');
+      console.warn('[livekit/start] Notificações não enviadas: patient ou profile não encontrado');
     }
 
     return { roomName, token: psychologistToken, serverUrl };
