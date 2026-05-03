@@ -17,7 +17,8 @@ async function asaasRequest<T = unknown>(
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
-  const data = await res.json() as any;
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : {};
 
   if (!res.ok) {
     const msg = data?.errors?.[0]?.description ?? data?.message ?? `Asaas error ${res.status}`;
@@ -97,12 +98,19 @@ export async function createAsaasPayment(
     billingType?: BillingType;
   },
 ): Promise<AsaasPaymentResult> {
+  const walletId    = process.env.ASAAS_WALLET_ID;
+  const feePercent  = Number(process.env.PLATFORM_FEE_PERCENT ?? 3);
+  const split       = walletId && feePercent > 0
+    ? [{ walletId, percentualValue: feePercent }]
+    : undefined;
+
   return asaasRequest<AsaasPaymentResult>(apiKey, 'POST', '/payments', {
     customer:    payment.customer,
     value:       payment.value,
     dueDate:     payment.dueDate,
     description: payment.description,
     billingType: payment.billingType ?? 'UNDEFINED',
+    ...(split ? { split } : {}),
   });
 }
 
@@ -119,6 +127,78 @@ export async function getAsaasPixQrCode(apiKey: string, paymentId: string): Prom
 export async function cancelAsaasPayment(apiKey: string, paymentId: string): Promise<void> {
   await asaasRequest(apiKey, 'DELETE', `/payments/${paymentId}`);
 }
+
+// ── Carteira / Wallet ─────────────────────────────────────────────────────────
+
+export interface AsaasBalance {
+  balance: number;
+  totalBalance: number;
+}
+
+export interface AsaasStatementEntry {
+  id: string;
+  date: string;
+  value: number;
+  type: 'CREDIT' | 'DEBIT';
+  description: string;
+  balance: number;
+}
+
+export interface AsaasTransfer {
+  id: string;
+  dateCreated: string;
+  value: number;
+  type: string;
+  status: string;
+  description: string | null;
+  pixAddressKey?: string;
+}
+
+export interface CreateTransferInput {
+  value: number;
+  pixAddressKey: string;
+  pixAddressKeyType: 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'EVP';
+  description?: string;
+}
+
+export async function getAsaasBalance(apiKey: string): Promise<AsaasBalance> {
+  return asaasRequest<AsaasBalance>(apiKey, 'GET', '/finance/balance');
+}
+
+export async function getAsaasStatement(
+  apiKey: string,
+  params?: { startDate?: string; endDate?: string; limit?: number; offset?: number },
+): Promise<{ data: AsaasStatementEntry[]; totalCount: number; hasMore: boolean }> {
+  const qs = new URLSearchParams();
+  if (params?.startDate) qs.set('startDate', params.startDate);
+  if (params?.endDate)   qs.set('endDate', params.endDate);
+  if (params?.limit)     qs.set('limit', String(params.limit));
+  if (params?.offset)    qs.set('offset', String(params.offset));
+  const q = qs.toString();
+  const res = await asaasRequest<any>(apiKey, 'GET', `/finance/financialStatement${q ? '?' + q : ''}`);
+  return { data: res?.data ?? [], totalCount: res?.totalCount ?? 0, hasMore: res?.hasMore ?? false };
+}
+
+export async function getAsaasTransfers(
+  apiKey: string,
+  params?: { limit?: number; offset?: number },
+): Promise<{ data: AsaasTransfer[]; totalCount: number; hasMore: boolean }> {
+  const qs = new URLSearchParams();
+  if (params?.limit)  qs.set('limit', String(params.limit));
+  if (params?.offset) qs.set('offset', String(params.offset));
+  const q = qs.toString();
+  const res = await asaasRequest<any>(apiKey, 'GET', `/transfers${q ? '?' + q : ''}`);
+  return { data: res?.data ?? [], totalCount: res?.totalCount ?? 0, hasMore: res?.hasMore ?? false };
+}
+
+export async function createAsaasTransfer(
+  apiKey: string,
+  input: CreateTransferInput,
+): Promise<{ id: string; status: string }> {
+  return asaasRequest(apiKey, 'POST', '/transfers', input);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export function asaasStatusToInternal(asaasStatus: string): string {
   const map: Record<string, string> = {

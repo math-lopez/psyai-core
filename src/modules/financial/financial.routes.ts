@@ -102,6 +102,46 @@ const financialRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => 
     );
     return reply.status(201).send({ data });
   });
+
+  // ── Carteira Asaas ──────────────────────────────────────────────────────────
+
+  fastify.get("/v1/financial/asaas/balance", async (request, reply) => {
+    const data = await service.getWalletBalance(request.authUser.id);
+    return reply.send({ data });
+  });
+
+  fastify.get("/v1/financial/asaas/statement", async (request, reply) => {
+    const { startDate, endDate, limit, offset } = request.query as Record<string, string>;
+    const data = await service.getWalletStatement(request.authUser.id, {
+      startDate,
+      endDate,
+      limit:  limit  ? Number(limit)  : undefined,
+      offset: offset ? Number(offset) : undefined,
+    });
+    return reply.send({ data });
+  });
+
+  fastify.get("/v1/financial/asaas/transfers", async (request, reply) => {
+    const { limit, offset } = request.query as Record<string, string>;
+    const data = await service.getWalletTransfers(request.authUser.id, {
+      limit:  limit  ? Number(limit)  : undefined,
+      offset: offset ? Number(offset) : undefined,
+    });
+    return reply.send({ data });
+  });
+
+  fastify.post("/v1/financial/asaas/transfer", async (request, reply) => {
+    const body = request.body as any;
+    const missing = ['value', 'pixAddressKey', 'pixAddressKeyType'].filter((f) => !body?.[f]);
+    if (missing.length) return reply.status(400).send({ message: `Campos obrigatórios: ${missing.join(', ')}` });
+    const data = await service.createWalletTransfer(request.authUser.id, {
+      value:              Number(body.value),
+      pixAddressKey:      body.pixAddressKey,
+      pixAddressKeyType:  body.pixAddressKeyType,
+      description:        body.description,
+    });
+    return reply.send({ data });
+  });
 };
 
 export default financialRoutes;

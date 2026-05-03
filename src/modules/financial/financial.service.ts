@@ -13,6 +13,11 @@ import {
   getAsaasPixQrCode,
   cancelAsaasPayment,
   asaasStatusToInternal,
+  getAsaasBalance,
+  getAsaasStatement,
+  getAsaasTransfers,
+  createAsaasTransfer,
+  CreateTransferInput,
 } from "../../services/asaasService";
 
 export class FinancialService {
@@ -325,5 +330,39 @@ if (asaasKey && Number(payload.amount) < 5) {
     }
 
     await sendChargeEmail(emailParams);
+  }
+
+  // ── Carteira Asaas ──────────────────────────────────────────────────────────
+
+  private async requireAsaasKey(psychologistId: string): Promise<string> {
+    const apiKey = await this.repository.findAsaasApiKey(psychologistId);
+    if (!apiKey) throw this.fastify.httpErrors.badRequest('Conta Asaas não conectada');
+    return apiKey;
+  }
+
+  async getWalletBalance(psychologistId: string) {
+    const apiKey = await this.requireAsaasKey(psychologistId);
+    return getAsaasBalance(apiKey);
+  }
+
+  async getWalletStatement(
+    psychologistId: string,
+    params?: { startDate?: string; endDate?: string; limit?: number; offset?: number },
+  ) {
+    const apiKey = await this.requireAsaasKey(psychologistId);
+    return getAsaasStatement(apiKey, params);
+  }
+
+  async getWalletTransfers(
+    psychologistId: string,
+    params?: { limit?: number; offset?: number },
+  ) {
+    const apiKey = await this.requireAsaasKey(psychologistId);
+    return getAsaasTransfers(apiKey, params);
+  }
+
+  async createWalletTransfer(psychologistId: string, input: CreateTransferInput) {
+    const apiKey = await this.requireAsaasKey(psychologistId);
+    return createAsaasTransfer(apiKey, input);
   }
 }

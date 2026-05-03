@@ -6,6 +6,17 @@ import { asaasStatusToInternal } from "../../services/asaasService";
 const financialPublicRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   const service = new FinancialService(fastify);
 
+  fastify.get("/v1/public/platform-fees", async (_request, reply) => {
+    return reply.send({
+      data: {
+        platformFeePercent:     Number(process.env.PLATFORM_FEE_PERCENT ?? 3),
+        asaasPixFee:            0.99,
+        asaasBoletoFee:         3.49,
+        asaasCreditCardPercent: 2.99,
+      },
+    });
+  });
+
   fastify.get("/v1/public/charges/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const data = await service.getPublicCharge(id);
