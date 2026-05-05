@@ -1,6 +1,8 @@
-const ASAAS_BASE = process.env.ASAAS_ENV === 'production'
-  ? 'https://api.asaas.com/v3'
-  : 'https://sandbox.asaas.com/api/v3';
+function getAsaasBase(): string {
+  return process.env.ASAAS_ENV === 'production'
+    ? 'https://api.asaas.com/v3'
+    : 'https://sandbox.asaas.com/api/v3';
+}
 
 function getMasterKey(): string {
   const key = process.env.ASAAS_MASTER_KEY;
@@ -14,7 +16,8 @@ async function asaasRequest<T = unknown>(
   path: string,
   body?: unknown,
 ): Promise<T> {
-  const res = await fetch(`${ASAAS_BASE}${path}`, {
+  const base = getAsaasBase();
+  const res = await fetch(`${base}${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
@@ -28,6 +31,7 @@ async function asaasRequest<T = unknown>(
 
   if (!res.ok) {
     const msg = data?.errors?.[0]?.description ?? data?.message ?? `Asaas error ${res.status}`;
+    console.error(`[asaas] HTTP ${res.status} ${method} ${base}${path} →`, JSON.stringify(data));
     throw new Error(msg);
   }
 

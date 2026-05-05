@@ -64,7 +64,7 @@ export class FinancialService {
     try {
       await this.createAsaasPaymentAsync(charge.id, payload);
     } catch (err: any) {
-      this.fastify.log.error({ err }, "[asaas] Falha ao criar pagamento no Asaas");
+      this.fastify.log.error({ err, message: err?.message, stack: err?.stack }, "[asaas] Falha ao criar pagamento no Asaas");
       return { ...charge, asaas_error: err?.message ?? "Erro ao criar pagamento no Asaas" };
     }
 
@@ -75,30 +75,48 @@ export class FinancialService {
     chargeId: string,
     payload: Pick<FinancialCharge, "patient_id" | "amount" | "description" | "due_date"> & { billing_type?: BillingType },
   ) {
+    const log = this.fastify.log;
+    log.info({ chargeId, patientId: payload.patient_id }, "[asaas] iniciando criação de pagamento");
+
+    const masterKey = process.env.ASAAS_MASTER_KEY;
+    const asaasEnv  = process.env.ASAAS_ENV;
+    log.info({ hasKey: !!masterKey, key20chars: masterKey?.slice(0, 20), asaasEnv }, "[asaas] configuração");
+
     const patient = await this.repository.findPatientBasic(payload.patient_id);
-    if (!patient) return;
+    if (!patient) {
+      log.warn({ chargeId }, "[asaas] paciente não encontrado, abortando");
+      return;
+    }
 
     if (!patient.cpf) {
       throw new Error("Paciente sem CPF cadastrado. Adicione o CPF do paciente antes de cobrar via Asaas.");
     }
 
     const cpfCnpj = patient.cpf.replace(/\D/g, "");
+    log.info({ chargeId, patientName: patient.full_name, cpfLen: cpfCnpj.length }, "[asaas] dados do paciente ok");
 
     let customerId = await this.repository.findPatientAsaasCustomerId(payload.patient_id);
     if (!customerId) {
+      log.info({ chargeId }, "[asaas] criando cliente no Asaas");
       customerId = await createAsaasCustomer({
         name:    patient.full_name,
         email:   patient.email || undefined,
         cpfCnpj,
       });
+      log.info({ chargeId, customerId }, "[asaas] cliente criado");
       await this.repository.savePatientAsaasCustomerId(payload.patient_id, customerId);
     } else {
-      await updateAsaasCustomer(customerId, { cpfCnpj }).catch(() => {});
+      log.info({ chargeId, customerId }, "[asaas] cliente já existe, atualizando CPF");
+      await updateAsaasCustomer(customerId, { cpfCnpj }).catch((err) => {
+        log.warn({ err }, "[asaas] falha ao atualizar CPF do cliente (ignorado)");
+      });
     }
 
     const dueDate = payload.due_date
       ? payload.due_date.slice(0, 10)
       : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    log.info({ chargeId, customerId, value: payload.amount, dueDate, billingType: payload.billing_type }, "[asaas] criando pagamento");
 
     const payment = await createAsaasPayment({
       customer:    customerId,
@@ -108,6 +126,7 @@ export class FinancialService {
       billingType: payload.billing_type,
     });
 
+    log.info({ chargeId, asaasPaymentId: payment.id, invoiceUrl: payment.invoiceUrl }, "[asaas] pagamento criado com sucesso");
     await this.repository.updateChargeAsaasPaymentId(chargeId, payment.id, payment.invoiceUrl);
   }
 
