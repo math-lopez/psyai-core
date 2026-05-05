@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PatientService } from './patient.service';
 import { createPatientSchema, updatePatientSchema } from './patient.schemas';
+import { replyValidationError } from '../../shared/errors/validation-helper.js';
 
 export default async function patientRoutes(app: FastifyInstance) {
   const service = new PatientService(app);
@@ -15,18 +16,14 @@ export default async function patientRoutes(app: FastifyInstance) {
 
   app.post('/v1/patients', { preHandler: [app.authenticate] }, async (request: any, reply) => {
     const parsed = createPatientSchema.safeParse(request.body);
-    if (!parsed.success) {
-      return reply.status(400).send({ message: 'Dados inválidos', errors: parsed.error.flatten() });
-    }
+    if (!parsed.success) return replyValidationError(reply, parsed.error);
     const patient = await service.create(request.authUser.id, parsed.data);
     return reply.status(201).send(patient);
   });
 
   app.put('/v1/patients/:id', { preHandler: [app.authenticate] }, async (request: any, reply) => {
     const parsed = updatePatientSchema.safeParse(request.body);
-    if (!parsed.success) {
-      return reply.status(400).send({ message: 'Dados inválidos', errors: parsed.error.flatten() });
-    }
+    if (!parsed.success) return replyValidationError(reply, parsed.error);
     return service.update(request.params.id, request.authUser.id, parsed.data);
   });
 

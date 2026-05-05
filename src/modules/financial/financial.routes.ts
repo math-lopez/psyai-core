@@ -6,20 +6,6 @@ const financialRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => 
 
   fastify.addHook("preHandler", fastify.authenticate);
 
-  fastify.get("/v1/financial/asaas/status", async (request, reply) => {
-    const data = await service.getAsaasStatus(request.authUser.id);
-    return reply.send({ data });
-  });
-
-  fastify.post("/v1/financial/asaas/connect", async (request, reply) => {
-    const body = request.body as any;
-    const required = ['name','email','cpfCnpj','mobilePhone','incomeValue','address','addressNumber','province','postalCode'];
-    const missing = required.filter((f) => !body?.[f]);
-    if (missing.length) return reply.status(400).send({ message: `Campos obrigatórios: ${missing.join(', ')}` });
-    const data = await service.connectAsaas(request.authUser.id, body);
-    return reply.send({ data });
-  });
-
   fastify.get("/v1/financial/settings", async (request, reply) => {
     const data = await service.getSettings(request.authUser.id);
     return reply.send({ data });
@@ -28,9 +14,9 @@ const financialRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => 
   fastify.put("/v1/financial/settings", async (request, reply) => {
     const body = request.body as any;
     const data = await service.saveSettings(request.authUser.id, {
-      pix_key: body.pix_key,
-      pix_key_type: body.pix_key_type,
-      beneficiary_name: body.beneficiary_name,
+      pix_key:               body.pix_key,
+      pix_key_type:          body.pix_key_type,
+      beneficiary_name:      body.beneficiary_name,
       default_session_value: body.default_session_value ?? null,
     });
     return reply.send({ data });
@@ -90,9 +76,9 @@ const financialRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => 
   fastify.post("/v1/patients/:patientId/financial/close-period", async (request, reply) => {
     const { patientId } = request.params as { patientId: string };
     const { session_ids, session_value, description, billing_type } = request.body as {
-      session_ids: string[];
+      session_ids:   string[];
       session_value: number;
-      description: string;
+      description:   string;
       billing_type?: string;
     };
     const data = await service.closePeriod(
@@ -104,46 +90,6 @@ const financialRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => 
       billing_type as any,
     );
     return reply.status(201).send({ data });
-  });
-
-  // ── Carteira Asaas ──────────────────────────────────────────────────────────
-
-  fastify.get("/v1/financial/asaas/balance", async (request, reply) => {
-    const data = await service.getWalletBalance(request.authUser.id);
-    return reply.send({ data });
-  });
-
-  fastify.get("/v1/financial/asaas/statement", async (request, reply) => {
-    const { startDate, endDate, limit, offset } = request.query as Record<string, string>;
-    const data = await service.getWalletStatement(request.authUser.id, {
-      startDate,
-      endDate,
-      limit:  limit  ? Number(limit)  : undefined,
-      offset: offset ? Number(offset) : undefined,
-    });
-    return reply.send({ data });
-  });
-
-  fastify.get("/v1/financial/asaas/transfers", async (request, reply) => {
-    const { limit, offset } = request.query as Record<string, string>;
-    const data = await service.getWalletTransfers(request.authUser.id, {
-      limit:  limit  ? Number(limit)  : undefined,
-      offset: offset ? Number(offset) : undefined,
-    });
-    return reply.send({ data });
-  });
-
-  fastify.post("/v1/financial/asaas/transfer", async (request, reply) => {
-    const body = request.body as any;
-    const missing = ['value', 'pixAddressKey', 'pixAddressKeyType'].filter((f) => !body?.[f]);
-    if (missing.length) return reply.status(400).send({ message: `Campos obrigatórios: ${missing.join(', ')}` });
-    const data = await service.createWalletTransfer(request.authUser.id, {
-      value:              Number(body.value),
-      pixAddressKey:      body.pixAddressKey,
-      pixAddressKeyType:  body.pixAddressKeyType,
-      description:        body.description,
-    });
-    return reply.send({ data });
   });
 };
 

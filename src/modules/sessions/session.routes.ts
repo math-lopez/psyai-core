@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { SessionService } from './session.service';
 import { createSessionSchema, updateSessionSchema, createRecurrentSessionSchema } from './session.schemas';
+import { replyValidationError } from '../../shared/errors/validation-helper.js';
 
 export default async function sessionRoutes(app: FastifyInstance) {
   const service = new SessionService(app);
@@ -35,42 +36,21 @@ export default async function sessionRoutes(app: FastifyInstance) {
 
   app.post('/v1/sessions/recurrent', { preHandler: [app.authenticate] }, async (request: any, reply) => {
     const parsed = createRecurrentSessionSchema.safeParse(request.body);
-
-    if (!parsed.success) {
-      return reply.status(400).send({
-        message: 'Dados inválidos',
-        errors: parsed.error.flatten(),
-      });
-    }
-
+    if (!parsed.success) return replyValidationError(reply, parsed.error);
     const created = await service.createRecurrent(request.authUser.id, parsed.data);
     return reply.status(201).send(created);
   });
 
   app.post('/v1/sessions', { preHandler: [app.authenticate] }, async (request: any, reply) => {
     const parsed = createSessionSchema.safeParse(request.body);
-
-    if (!parsed.success) {
-      return reply.status(400).send({
-        message: 'Dados inválidos',
-        errors: parsed.error.flatten(),
-      });
-    }
-
+    if (!parsed.success) return replyValidationError(reply, parsed.error);
     const created = await service.create(request.authUser.id, parsed.data);
     return reply.status(201).send(created);
   });
 
-  app.put('/v1/sessions/:id', { preHandler: [app.authenticate] }, async (request: any) => {
+  app.put('/v1/sessions/:id', { preHandler: [app.authenticate] }, async (request: any, reply) => {
     const parsed = updateSessionSchema.safeParse(request.body);
-
-    if (!parsed.success) {
-      return {
-        message: 'Dados inválidos',
-        errors: parsed.error.flatten(),
-      };
-    }
-
+    if (!parsed.success) return replyValidationError(reply, parsed.error);
     return service.update(request.params.id, request.authUser.id, parsed.data);
   });
 

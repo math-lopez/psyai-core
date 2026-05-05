@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { TestService } from './test.service';
 import { CreateTemplateSchema, CreateApplicationSchema, SubmitTestSchema } from './test.types';
+import { replyValidationError } from '../../shared/errors/validation-helper.js';
 
 export default async function testRoutes(app: FastifyInstance) {
   const service = new TestService(app);
@@ -17,7 +18,7 @@ export default async function testRoutes(app: FastifyInstance) {
 
   app.post('/v1/tests/templates', { preHandler: [app.authenticate] }, async (request: any, reply) => {
     const parsed = CreateTemplateSchema.safeParse(request.body);
-    if (!parsed.success) return reply.status(400).send({ message: 'Dados inválidos', errors: parsed.error.flatten() });
+    if (!parsed.success) return replyValidationError(reply, parsed.error);
     const created = await service.createTemplate(request.authUser.id, parsed.data);
     return reply.status(201).send(created);
   });
@@ -30,7 +31,7 @@ export default async function testRoutes(app: FastifyInstance) {
 
   app.post('/v1/tests/applications', { preHandler: [app.authenticate] }, async (request: any, reply) => {
     const parsed = CreateApplicationSchema.safeParse(request.body);
-    if (!parsed.success) return reply.status(400).send({ message: 'Dados inválidos', errors: parsed.error.flatten() });
+    if (!parsed.success) return replyValidationError(reply, parsed.error);
     const created = await service.applyTest(request.authUser.id, parsed.data);
     return reply.status(201).send(created);
   });
@@ -47,7 +48,7 @@ export default async function testRoutes(app: FastifyInstance) {
 
   app.post('/v1/public/tests/:token/submit', async (request: any, reply) => {
     const parsed = SubmitTestSchema.safeParse(request.body);
-    if (!parsed.success) return reply.status(400).send({ message: 'Dados inválidos', errors: parsed.error.flatten() });
+    if (!parsed.success) return replyValidationError(reply, parsed.error);
     const result = await service.submitTest(request.params.token, parsed.data);
     return reply.status(200).send(result);
   });

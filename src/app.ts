@@ -5,6 +5,8 @@ import rateLimit from "@fastify/rate-limit";
 import multipart from "@fastify/multipart";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
+import { ZodError } from "zod";
+import { AppError } from "./shared/errors/app-error.js";
 
 import supabasePlugin from "./plugins/supabase";
 import authPlugin from "./plugins/auth";
@@ -23,6 +25,8 @@ import { featuresRoutes } from "./modules/features/features.routes";
 import livekitRoutes from "./modules/livekit/livekit.routes";
 import financialRoutes from "./modules/financial/financial.routes";
 import financialPublicRoutes from "./modules/financial/financial.public.routes";
+import { registerTransferJob } from "./modules/financial/transfer.job";
+import profileRoutes from "./modules/profile/profile.routes";
 import testRoutes from "./modules/tests/test.routes";
 
 export async function buildApp() {
@@ -112,15 +116,14 @@ export async function buildApp() {
     );
 
     app.setErrorHandler((error, request, reply) => {
-      request.log.error(error);
-
-      const statusCode =
-        typeof (error as any).statusCode === "number"
-          ? (error as any).statusCode
-          : 500;
-
+      const err = error as Error & { statusCode?: number };
+      const statusCode = typeof err.statusCode === "number" ? err.statusCode : 500;
+      request.log.error(
+        { requestId: request.id, method: request.method, url: request.url, statusCode, stack: err.stack },
+        err.message,
+      );
       return reply.status(statusCode).send({
-        message: (error as Error).message || "Erro interno do servidor",
+        message: statusCode < 500 ? err.message : "Erro interno do servidor",
       });
     });
 
@@ -143,18 +146,43 @@ export async function buildApp() {
   await app.register(featuresRoutes);
   await app.register(livekitRoutes);
   await app.register(financialRoutes);
+  await app.register(profileRoutes);
   await app.register(testRoutes);
 
-  app.setErrorHandler((error, request, reply) => {
-    request.log.error(error);
+  registerTransferJob(app);
 
-    const statusCode =
-      typeof (error as any).statusCode === "number"
-        ? (error as any).statusCode
-        : 500;
+  app.setErrorHandler((error, request, reply) => {
+    const ctx = {
+      requestId: request.id,
+      method: request.method,
+      url: request.url,
+      userId: (request as any).authUser?.id,
+    };
+
+    if (error instanceof ZodError) {
+      request.log.warn({ ...ctx, validation: error.flatten() }, "Validation error (uncaught ZodError)");
+      return reply.status(400).send({ message: "Dados invalidos", details: error.flatten() });
+    }
+
+    if (error instanceof AppError) {
+      request.log.warn({ ...ctx, statusCode: error.statusCode }, error.message);
+      return reply.status(error.statusCode).send({
+        message: error.message,
+        details: error.details ?? null,
+      });
+    }
+
+    const err = error as Error & { statusCode?: number };
+    const statusCode = typeof err.statusCode === "number" ? err.statusCode : 500;
+
+    if (statusCode >= 500) {
+      request.log.error({ ...ctx, statusCode, stack: err.stack }, err.message || "Erro desconhecido");
+    } else {
+      request.log.warn({ ...ctx, statusCode }, err.message);
+    }
 
     return reply.status(statusCode).send({
-      message: (error as Error).message || "Erro interno do servidor",
+      message: statusCode < 500 ? (err.message || "Erro na requisicao") : "Erro interno do servidor",
     });
   });
 
