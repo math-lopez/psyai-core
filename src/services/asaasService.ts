@@ -31,7 +31,7 @@ async function asaasRequest<T = unknown>(
 
   if (!res.ok) {
     const msg = data?.errors?.[0]?.description ?? data?.message ?? `Asaas error ${res.status}`;
-    console.error(`[asaas] HTTP ${res.status} ${method} ${base}${path} →`, JSON.stringify(data));
+    console.error(`[asaas] HTTP ${res.status} ${method} ${path} →`, JSON.stringify(data));
     throw new Error(msg);
   }
 

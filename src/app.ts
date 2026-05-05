@@ -29,9 +29,47 @@ import { registerTransferJob } from "./modules/financial/transfer.job";
 import profileRoutes from "./modules/profile/profile.routes";
 import testRoutes from "./modules/tests/test.routes";
 
+function buildLoggerConfig() {
+  const lokiUrl = process.env.LOKI_URL;
+  const lokiUser = process.env.LOKI_USER;
+  const lokiPassword = process.env.LOKI_PASSWORD;
+
+  if (!lokiUrl || !lokiUser || !lokiPassword) {
+    return { level: 'info' };
+  }
+
+  return {
+    level: 'info',
+    transport: {
+      targets: [
+        {
+          target: 'pino/file',
+          options: { destination: 1 },
+          level: 'info',
+        },
+        {
+          target: 'pino-loki',
+          options: {
+            host: lokiUrl,
+            basicAuth: { username: lokiUser, password: lokiPassword },
+            labels: {
+              app: 'psyai-core',
+              env: process.env.NODE_ENV ?? 'production',
+            },
+            interval: 5,
+            silenceErrors: false,
+            replaceTimestamp: false,
+          },
+          level: 'info',
+        },
+      ],
+    },
+  };
+}
+
 export async function buildApp() {
   const app = Fastify({
-    logger: true,
+    logger: buildLoggerConfig(),
   });
 
   const hasSupabaseConfig = Boolean(
