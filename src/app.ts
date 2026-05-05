@@ -187,7 +187,10 @@ export async function buildApp() {
   await app.register(profileRoutes);
   await app.register(testRoutes);
 
-  registerTransferJob(app);
+  // Cron só roda em processo persistente — não em Vercel serverless
+  if (process.env.VERCEL !== "1") {
+    registerTransferJob(app);
+  }
 
   app.setErrorHandler((error, request, reply) => {
     const ctx = {

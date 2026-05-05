@@ -34,7 +34,16 @@ export default async function handler(
     return;
   }
 
-  const app = await getApp();
+  let app;
+  try {
+    app = await getApp();
+  } catch (err) {
+    console.error("[handler] Falha ao inicializar app:", err);
+    res.writeHead(500, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ message: "Erro interno ao inicializar servidor" }));
+    appPromise = undefined; // reseta para tentar novamente na próxima requisição
+    return;
+  }
 
   if (typeof req.url === "string") {
     const parsed = new URL(req.url, "http://localhost");
