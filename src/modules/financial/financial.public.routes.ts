@@ -56,6 +56,22 @@ const financialPublicRoutes: FastifyPluginAsync = async (fastify: FastifyInstanc
       fastify.log.error({ err }, '[asaas webhook] Falha ao processar evento');
     }
   });
+
+  // Endpoint chamado pelo Vercel Cron para processar repasses
+  // O Vercel injeta Authorization: Bearer {CRON_SECRET} automaticamente
+  fastify.get("/v1/internal/run-transfers", async (request, reply) => {
+    const auth = request.headers["authorization"];
+    const expected = `Bearer ${process.env.CRON_SECRET}`;
+    if (!process.env.CRON_SECRET || auth !== expected) {
+      return reply.status(401).send({ message: "Não autorizado" });
+    }
+
+    reply.status(200).send({ started: true });
+
+    service.processPendingTransfers().catch((err) => {
+      fastify.log.error({ err }, "[repasse] Erro no job de repasse via cron");
+    });
+  });
 };
 
 export default financialPublicRoutes;

@@ -34,7 +34,8 @@ function buildLoggerConfig() {
   const lokiUser = process.env.LOKI_USER;
   const lokiPassword = process.env.LOKI_PASSWORD;
 
-  if (!lokiUrl || !lokiUser || !lokiPassword) {
+  // pino worker threads não funcionam em Vercel serverless
+  if (!lokiUrl || !lokiUser || !lokiPassword || process.env.VERCEL === '1') {
     return { level: 'info' };
   }
 
