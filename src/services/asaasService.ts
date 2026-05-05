@@ -72,11 +72,12 @@ export async function createAsaasPayment(payment: {
   billingType?: BillingType;
 }): Promise<AsaasPaymentResult> {
   return asaasRequest<AsaasPaymentResult>(getMasterKey(), 'POST', '/payments', {
-    customer:    payment.customer,
-    value:       payment.value,
-    dueDate:     payment.dueDate,
-    description: payment.description,
-    billingType: payment.billingType ?? 'UNDEFINED',
+    customer:                   payment.customer,
+    value:                      payment.value,
+    dueDate:                    payment.dueDate,
+    description:                payment.description,
+    billingType:                payment.billingType ?? 'UNDEFINED',
+    sendPaymentByPostalService: false,  // desabilita notificações do Asaas — sistema próprio envia
   });
 }
 

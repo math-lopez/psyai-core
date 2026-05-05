@@ -315,7 +315,16 @@ export class FinancialService {
         continue;
       }
 
-      const transferAmount = Number((Number(charge.amount) * (1 - platformFeePercent / 100)).toFixed(2));
+      // Taxas fixas do Asaas por método (independem do valor)
+      // Mensageria desabilitada no painel Asaas — sistema próprio envia notificações
+      const asaasFees: Record<string, number> = {
+        PIX:       0.99,
+        BOLETO:    3.49,
+        UNDEFINED: 0.99,
+      };
+      const asaasFee = asaasFees[charge.billing_type ?? "PIX"] ?? 1.98;
+      const platformFee = Number(charge.amount) * platformFeePercent / 100;
+      const transferAmount = Number((Number(charge.amount) - asaasFee - platformFee).toFixed(2));
       if (transferAmount <= 0) continue;
 
       try {

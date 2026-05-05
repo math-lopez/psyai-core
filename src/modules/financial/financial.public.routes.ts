@@ -9,10 +9,9 @@ const financialPublicRoutes: FastifyPluginAsync = async (fastify: FastifyInstanc
   fastify.get("/v1/public/platform-fees", async (_request, reply) => {
     return reply.send({
       data: {
-        platformFeePercent:     Number(process.env.PLATFORM_FEE_PERCENT ?? 3),
-        asaasPixFee:            0.99,
-        asaasBoletoFee:         3.49,
-        asaasCreditCardPercent: 2.99,
+        platformFeePercent: Number(process.env.PLATFORM_FEE_PERCENT ?? 0),
+        asaasPixFee:        0.99,
+        asaasBoletoFee:     3.49,
       },
     });
   });
