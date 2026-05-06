@@ -7,6 +7,10 @@
     {
       "path": "/v1/internal/run-transfers",
       "schedule": "15 3 * * *"
+    },
+    {
+      "path": "/cron-test",
+      "schedule": "22 3 * * *"
     }
   ],
   "rewrites": [

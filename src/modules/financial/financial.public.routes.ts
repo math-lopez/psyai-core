@@ -71,6 +71,11 @@ const financialPublicRoutes: FastifyPluginAsync = async (fastify: FastifyInstanc
       fastify.log.error({ err }, "[repasse] Erro no job de repasse via cron");
     });
   });
+
+  fastify.get("/cron-test", async (request, reply) => {
+  console.log("🔥 CRON-TEST RODOU", new Date().toISOString());
+  return reply.send({ ok: true });
+});
 };
 
 export default financialPublicRoutes;
