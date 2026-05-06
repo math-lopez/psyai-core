@@ -3,6 +3,12 @@
   "framework": null,
   "buildCommand": "",
   "outputDirectory": ".",
+  "crons": [
+    {
+      "path": "/v1/public/process-transfers",
+      "schedule": "0 21 * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/docs",
