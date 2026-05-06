@@ -76,6 +76,7 @@ const financialPublicRoutes: FastifyPluginAsync = async (fastify: FastifyInstanc
   console.log("🔥 CRON-TEST RODOU", new Date().toISOString());
   return reply.send({ ok: true });
 });
+
 };
 
 export default financialPublicRoutes;
