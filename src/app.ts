@@ -29,14 +29,93 @@ import { registerTransferJob } from "./modules/financial/transfer.job";
 import profileRoutes from "./modules/profile/profile.routes";
 import testRoutes from "./modules/tests/test.routes";
 
+const LOKI_LEVEL_LABELS: Record<number, string> = {
+  10: "trace",
+  20: "debug",
+  30: "info",
+  40: "warn",
+  50: "error",
+  60: "fatal",
+};
+
+function buildLokiPushUrl(host: string) {
+  const normalizedHost = host.replace(/\/+$/, "");
+  return normalizedHost.endsWith("/loki/api/v1/push")
+    ? normalizedHost
+    : `${normalizedHost}/loki/api/v1/push`;
+}
+
+function buildVercelLokiHook(lokiUrl: string, lokiUser: string, lokiPassword: string) {
+  const pushUrl = buildLokiPushUrl(lokiUrl);
+  const authorization = `Basic ${Buffer.from(`${lokiUser}:${lokiPassword}`).toString("base64")}`;
+
+  return function logMethod(args: unknown[], method: (...args: unknown[]) => void, level: number) {
+    method.apply(this, args);
+
+    const levelLabel = LOKI_LEVEL_LABELS[level] ?? "info";
+    const firstArg = args[0];
+    const secondArg = args[1];
+    const context = firstArg && typeof firstArg === "object" ? firstArg : undefined;
+    const message =
+      typeof firstArg === "string"
+        ? firstArg
+        : typeof secondArg === "string"
+          ? secondArg
+          : "log";
+
+    const stream = {
+      streams: [
+        {
+          stream: {
+            app: "psyai-core",
+            env: process.env.NODE_ENV ?? "production",
+            runtime: "vercel",
+            level: levelLabel,
+          },
+          values: [
+            [
+              `${Date.now() * 1_000_000}`,
+              JSON.stringify({
+                level: levelLabel,
+                message,
+                context,
+              }),
+            ],
+          ],
+        },
+      ],
+    };
+
+    fetch(pushUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authorization,
+      },
+      body: JSON.stringify(stream),
+    }).catch((err) => {
+      console.error("[loki] Falha ao enviar log:", err);
+    });
+  };
+}
+
 function buildLoggerConfig() {
   const lokiUrl = process.env.LOKI_URL;
   const lokiUser = process.env.LOKI_USER;
   const lokiPassword = process.env.LOKI_PASSWORD;
 
-  // pino worker threads não funcionam em Vercel serverless
-  if (!lokiUrl || !lokiUser || !lokiPassword || process.env.VERCEL === '1') {
+  if (!lokiUrl || !lokiUser || !lokiPassword) {
     return { level: 'info' };
+  }
+
+  // pino worker threads não funcionam em Vercel serverless; envie direto para Loki.
+  if (process.env.VERCEL === '1') {
+    return {
+      level: 'info',
+      hooks: {
+        logMethod: buildVercelLokiHook(lokiUrl, lokiUser, lokiPassword),
+      },
+    };
   }
 
   return {
