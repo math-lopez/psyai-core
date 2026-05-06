@@ -45,6 +45,37 @@ function buildLokiPushUrl(host: string) {
     : `${normalizedHost}/loki/api/v1/push`;
 }
 
+function safeStringifyLog(value: unknown) {
+  const seen = new WeakSet<object>();
+
+  try {
+    return JSON.stringify(value, (_key, item) => {
+      if (typeof item === "bigint") {
+        return item.toString();
+      }
+
+      if (item instanceof Error) {
+        return {
+          name: item.name,
+          message: item.message,
+          stack: item.stack,
+        };
+      }
+
+      if (item && typeof item === "object") {
+        if (seen.has(item)) {
+          return "[Circular]";
+        }
+        seen.add(item);
+      }
+
+      return item;
+    });
+  } catch {
+    return JSON.stringify({ message: "Log nao serializavel" });
+  }
+}
+
 function buildVercelLokiHook(lokiUrl: string, lokiUser: string, lokiPassword: string) {
   const pushUrl = buildLokiPushUrl(lokiUrl);
   const authorization = `Basic ${Buffer.from(`${lokiUser}:${lokiPassword}`).toString("base64")}`;
@@ -52,50 +83,54 @@ function buildVercelLokiHook(lokiUrl: string, lokiUser: string, lokiPassword: st
   return function logMethod(args: unknown[], method: (...args: unknown[]) => void, level: number) {
     method.apply(this, args);
 
-    const levelLabel = LOKI_LEVEL_LABELS[level] ?? "info";
-    const firstArg = args[0];
-    const secondArg = args[1];
-    const context = firstArg && typeof firstArg === "object" ? firstArg : undefined;
-    const message =
-      typeof firstArg === "string"
-        ? firstArg
-        : typeof secondArg === "string"
-          ? secondArg
-          : "log";
+    try {
+      const levelLabel = LOKI_LEVEL_LABELS[level] ?? "info";
+      const firstArg = args[0];
+      const secondArg = args[1];
+      const context = firstArg && typeof firstArg === "object" ? firstArg : undefined;
+      const message =
+        typeof firstArg === "string"
+          ? firstArg
+          : typeof secondArg === "string"
+            ? secondArg
+            : "log";
 
-    const stream = {
-      streams: [
-        {
-          stream: {
-            app: "psyai-core",
-            env: process.env.NODE_ENV ?? "production",
-            runtime: "vercel",
-            level: levelLabel,
-          },
-          values: [
-            [
-              `${Date.now() * 1_000_000}`,
-              JSON.stringify({
-                level: levelLabel,
-                message,
-                context,
-              }),
+      const stream = {
+        streams: [
+          {
+            stream: {
+              app: "psyai-core",
+              env: process.env.NODE_ENV ?? "production",
+              runtime: "vercel",
+              level: levelLabel,
+            },
+            values: [
+              [
+                `${Date.now() * 1_000_000}`,
+                safeStringifyLog({
+                  level: levelLabel,
+                  message,
+                  context,
+                }),
+              ],
             ],
-          ],
-        },
-      ],
-    };
+          },
+        ],
+      };
 
-    fetch(pushUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: authorization,
-      },
-      body: JSON.stringify(stream),
-    }).catch((err) => {
-      console.error("[loki] Falha ao enviar log:", err);
-    });
+      fetch(pushUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: authorization,
+        },
+        body: JSON.stringify(stream),
+      }).catch((err) => {
+        console.error("[loki] Falha ao enviar log:", err);
+      });
+    } catch (err) {
+      console.error("[loki] Falha ao preparar log:", err);
+    }
   };
 }
 
