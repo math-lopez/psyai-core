@@ -65,17 +65,17 @@ const financialPublicRoutes: FastifyPluginAsync = async (fastify: FastifyInstanc
       return reply.status(401).send({ message: "Não autorizado" });
     }
 
-    reply.status(200).send({ started: true });
+    fastify.log.info("[repasse] Iniciando job de repasse via Vercel Cron");
 
-    service.processPendingTransfers().catch((err) => {
+    try {
+      await service.processPendingTransfers();
+      fastify.log.info("[repasse] Job de repasse via Vercel Cron finalizado");
+      return reply.send({ ok: true });
+    } catch (err) {
       fastify.log.error({ err }, "[repasse] Erro no job de repasse via cron");
-    });
+      return reply.status(500).send({ message: "Erro ao processar repasses" });
+    }
   });
-
-  fastify.get("/v1/cron-test", async (request, reply) => {
-  console.log("🔥 CRON-TEST RODOU", new Date().toISOString());
-  return reply.send({ ok: true });
-});
 };
 
 export default financialPublicRoutes;
