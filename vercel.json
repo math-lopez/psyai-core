@@ -6,7 +6,7 @@
   "crons": [
     {
       "path": "/v1/internal/run-transfers",
-      "schedule": "0 11 * * *"
+      "schedule": "57 23 * * *"
     }
   ],
   "rewrites": [
