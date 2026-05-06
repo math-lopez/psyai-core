@@ -84,31 +84,52 @@ export class FinancialService {
 
     const cpfCnpj = patient.cpf.replace(/\D/g, "");
 
-    let customerId = await this.repository.findPatientAsaasCustomerId(payload.patient_id);
-    if (!customerId) {
-      customerId = await createAsaasCustomer({
-        name:    patient.full_name,
-        email:   patient.email || undefined,
-        cpfCnpj,
+    const resolveCustomerId = async (): Promise<string> => {
+      const existing = await this.repository.findPatientAsaasCustomerId(payload.patient_id);
+      if (!existing) {
+        const id = await createAsaasCustomer({ name: patient.full_name, email: patient.email || undefined, cpfCnpj });
+        await this.repository.savePatientAsaasCustomerId(payload.patient_id, id);
+        return id;
+      }
+      await updateAsaasCustomer(existing, { cpfCnpj }).catch((err) => {
+        this.fastify.log.warn({ err }, "[asaas] falha ao atualizar cliente (ignorado)");
       });
-      await this.repository.savePatientAsaasCustomerId(payload.patient_id, customerId);
-    } else {
-      await updateAsaasCustomer(customerId, { cpfCnpj }).catch((err) => {
-        this.fastify.log.warn({ err }, "[asaas] falha ao atualizar CPF do cliente (ignorado)");
-      });
-    }
+      return existing;
+    };
+
+    let customerId = await resolveCustomerId();
 
     const dueDate = payload.due_date
       ? payload.due_date.slice(0, 10)
       : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-    const payment = await createAsaasPayment({
-      customer:    customerId,
-      value:       Number(payload.amount),
-      dueDate,
-      description: payload.description ?? undefined,
-      billingType: payload.billing_type,
-    });
+    let payment;
+    try {
+      payment = await createAsaasPayment({
+        customer:    customerId,
+        value:       Number(payload.amount),
+        dueDate,
+        description: payload.description ?? undefined,
+        billingType: payload.billing_type,
+      });
+    } catch (err: any) {
+      // Cliente foi removido no Asaas — limpa o ID stale e recria
+      if (err?.message?.includes("removido") || err?.message?.includes("removed")) {
+        this.fastify.log.warn({ patientId: payload.patient_id }, "[asaas] cliente removido, recriando");
+        await this.repository.savePatientAsaasCustomerId(payload.patient_id, "");
+        customerId = await createAsaasCustomer({ name: patient.full_name, email: patient.email || undefined, cpfCnpj });
+        await this.repository.savePatientAsaasCustomerId(payload.patient_id, customerId);
+        payment = await createAsaasPayment({
+          customer:    customerId,
+          value:       Number(payload.amount),
+          dueDate,
+          description: payload.description ?? undefined,
+          billingType: payload.billing_type,
+        });
+      } else {
+        throw err;
+      }
+    }
 
     this.fastify.log.info({ chargeId, asaasPaymentId: payment.id }, "[asaas] pagamento criado");
     await this.repository.updateChargeAsaasPaymentId(chargeId, payment.id, payment.invoiceUrl);

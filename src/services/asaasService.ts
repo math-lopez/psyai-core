@@ -43,7 +43,10 @@ async function asaasRequest<T = unknown>(
 export async function createAsaasCustomer(
   customer: { name: string; email?: string; cpfCnpj?: string },
 ): Promise<string> {
-  const data = await asaasRequest<{ id: string }>(getMasterKey(), 'POST', '/customers', customer);
+  const data = await asaasRequest<{ id: string }>(getMasterKey(), 'POST', '/customers', {
+    ...customer,
+    notificationDisabled: true, // sistema próprio gerencia notificações ao paciente
+  });
   return data.id;
 }
 
@@ -51,7 +54,10 @@ export async function updateAsaasCustomer(
   customerId: string,
   fields: { cpfCnpj?: string },
 ): Promise<void> {
-  await asaasRequest(getMasterKey(), 'PUT', `/customers/${customerId}`, fields);
+  await asaasRequest(getMasterKey(), 'PUT', `/customers/${customerId}`, {
+    ...fields,
+    notificationDisabled: true,
+  });
 }
 
 // ── Pagamentos ────────────────────────────────────────────────────────────────
