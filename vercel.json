@@ -6,11 +6,11 @@
   "crons": [
     {
       "path": "/v1/internal/run-transfers",
-      "schedule": "1 * * * *"
+      "schedule": "* 11 * * *"
     },
     {
       "path": "/cron-test",
-      "schedule": "1 * * * *"
+      "schedule": "* 11 * * *"
     }
   ],
   "rewrites": [
