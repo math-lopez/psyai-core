@@ -5,8 +5,8 @@
   "outputDirectory": ".",
   "crons": [
     {
-      "path": "/v1/public/process-transfers",
-      "schedule": "0 21 * * *"
+      "path": "/v1/internal/run-transfers",
+      "schedule": "6 21 * * *"
     }
   ],
   "rewrites": [
