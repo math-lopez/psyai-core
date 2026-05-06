@@ -23,7 +23,10 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 export function replyValidationError(reply: FastifyReply, error: ZodError) {
-  const details = error.flatten();
+  const details = error.flatten() as {
+    fieldErrors: Record<string, string[] | undefined>;
+    formErrors: string[];
+  };
 
   const firstField = Object.entries(details.fieldErrors).find(
     ([, msgs]) => msgs && msgs.length > 0,
@@ -33,7 +36,7 @@ export function replyValidationError(reply: FastifyReply, error: ZodError) {
   if (firstField) {
     const [field, msgs] = firstField;
     const label = FIELD_LABELS[field] ?? field;
-    message = `${label}: ${msgs![0]}`;
+    message = `${label}: ${msgs[0]}`;
   } else if (details.formErrors.length > 0) {
     message = details.formErrors[0];
   }

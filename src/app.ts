@@ -80,7 +80,7 @@ function buildVercelLokiHook(lokiUrl: string, lokiUser: string, lokiPassword: st
   const pushUrl = buildLokiPushUrl(lokiUrl);
   const authorization = `Basic ${Buffer.from(`${lokiUser}:${lokiPassword}`).toString("base64")}`;
 
-  return function logMethod(args: unknown[], method: (...args: unknown[]) => void, level: number) {
+  return function logMethod(this: unknown, args: unknown[], method: (...args: unknown[]) => void, level: number) {
     method.apply(this, args);
 
     try {
