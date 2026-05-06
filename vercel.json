@@ -10,7 +10,7 @@
     },
     {
       "path": "/cron-test",
-      "schedule": "22 3 * * *"
+      "schedule": "25 3 * * *"
     }
   ],
   "rewrites": [
