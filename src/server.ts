@@ -33,6 +33,12 @@ async function bootstrap() {
 
       app.log.info('[cron] Jobs de lembretes registrados (dia-antes + 1h antes)');
     }
+
+    // cron-test — schedule configurável via CRON_TEST_SCHEDULE
+    cron.schedule(env.CRON_TEST_SCHEDULE, () => {
+      app.log.info(`[cron-test] rodou às ${new Date().toISOString()}`);
+    }, { timezone: 'America/Sao_Paulo' });
+    app.log.info(`[cron] cron-test registrado — schedule: ${env.CRON_TEST_SCHEDULE}`);
   } catch (error) {
     app.log.error(error);
     process.exit(1);
