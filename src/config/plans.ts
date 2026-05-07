@@ -1,60 +1,53 @@
-export type SubscriptionTier = 'free' | 'basic' | 'pro' | 'ultra';
+export type SubscriptionTier = 'free' | 'pro';
 
 export interface PlanLimits {
   name: string;
   price: number;
+  priceYearly: number;
   maxPatients: number;
   maxSessionsPerMonth: number;
   maxVideoCallsPerMonth: number;
   maxTranscriptionsPerMonth: number;
   maxSynthesesPerMonth: number;
   hasTherapeuticInsights: boolean;
+  hasFinancial: boolean;
+  hasWhatsAppReminders: boolean;
+  hasPsychologicalTests: boolean;
+  storageGB: number;
   description: string;
 }
 
 export const PLAN_LIMITS: Record<SubscriptionTier, PlanLimits> = {
   free: {
-    name: 'Gratuito',
+    name: 'Iniciante',
     price: 0,
+    priceYearly: 0,
     maxPatients: 3,
-    maxSessionsPerMonth: 5,
-    maxVideoCallsPerMonth: 0,
-    maxTranscriptionsPerMonth: 0,
-    maxSynthesesPerMonth: 0,
+    maxSessionsPerMonth: Infinity,
+    maxVideoCallsPerMonth: Infinity,
+    maxTranscriptionsPerMonth: 3,
+    maxSynthesesPerMonth: 2,
     hasTherapeuticInsights: false,
-    description: 'Ideal para experimentação e início de carreira.',
-  },
-  basic: {
-    name: 'Básico',
-    price: 12.9,
-    maxPatients: 7,
-    maxSessionsPerMonth: 28,
-    maxVideoCallsPerMonth: 5,
-    maxTranscriptionsPerMonth: 5,
-    maxSynthesesPerMonth: 0,
-    hasTherapeuticInsights: false,
-    description: 'Para profissionais que estão começando a crescer.',
+    hasFinancial: false,
+    hasWhatsAppReminders: false,
+    hasPsychologicalTests: false,
+    storageGB: 1,
+    description: 'Para conhecer a plataforma e dar os primeiros passos.',
   },
   pro: {
     name: 'Profissional',
-    price: 21.9,
-    maxPatients: 12,
-    maxSessionsPerMonth: 50,
-    maxVideoCallsPerMonth: 30,
-    maxTranscriptionsPerMonth: 30,
-    maxSynthesesPerMonth: 10,
-    hasTherapeuticInsights: true,
-    description: 'Gestão completa para clínicas em ritmo acelerado.',
-  },
-  ultra: {
-    name: 'Ultra',
-    price: 45.9,
+    price: 79,
+    priceYearly: 67,
     maxPatients: Infinity,
     maxSessionsPerMonth: Infinity,
     maxVideoCallsPerMonth: Infinity,
-    maxTranscriptionsPerMonth: Infinity,
-    maxSynthesesPerMonth: 50,
+    maxTranscriptionsPerMonth: 40,
+    maxSynthesesPerMonth: 30,
     hasTherapeuticInsights: true,
-    description: 'Liberdade total e inteligência artificial avançada.',
+    hasFinancial: true,
+    hasWhatsAppReminders: true,
+    hasPsychologicalTests: true,
+    storageGB: 20,
+    description: 'Gestão completa com IA para psicólogos em crescimento.',
   },
 };

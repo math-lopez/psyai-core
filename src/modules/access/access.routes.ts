@@ -8,11 +8,25 @@ import {
   updateAccessStatusBodySchema,
 } from "./access.schemas";
 import { AccessStatus } from "./access.types";
+import { PLAN_LIMITS, SubscriptionTier } from "../../config/plans";
 
 const accessRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   const accessService = new AccessService(fastify);
 
   fastify.addHook("preHandler", fastify.authenticate);
+
+  fastify.addHook("preHandler", async (request: any, reply) => {
+    const { data } = await fastify.supabaseAdmin
+      .from("profiles")
+      .select("subscription_tier")
+      .eq("id", request.authUser.id)
+      .maybeSingle();
+    const tier = (data?.subscription_tier ?? "free") as string;
+    const safeTier: SubscriptionTier = PLAN_LIMITS[tier as SubscriptionTier] ? (tier as SubscriptionTier) : "free";
+    if (safeTier === "free") {
+      return reply.status(403).send({ message: "O portal do paciente está disponível apenas no plano Profissional. Faça upgrade para continuar." });
+    }
+  });
 
   fastify.get(
     "/v1/patients/:patientId/access",

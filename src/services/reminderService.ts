@@ -51,7 +51,7 @@ export class ReminderService {
 
         const psychologistName = await this.repository.findPsychologistNameById(session.psychologist_id);
 
-        if (psychSettings?.whatsapp_reminder_enabled) {
+        if (psychSettings?.whatsapp_reminder_enabled && psychSettings.subscription_tier === 'pro') {
           await sendWhatsAppHourReminder({
             patientName: patient.full_name,
             patientPhone: patient.phone,
@@ -118,7 +118,7 @@ export class ReminderService {
             sessionDate: session.session_date,
           });
 
-          if (psychSettings?.whatsapp_reminder_enabled && patient.phone) {
+          if (psychSettings?.whatsapp_reminder_enabled && psychSettings.subscription_tier === 'pro' && patient.phone) {
             try {
               await sendWhatsAppReminder({
                 patientName: patient.full_name,

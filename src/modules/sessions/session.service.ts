@@ -274,6 +274,20 @@ export class SessionService {
     throw makeHttpError(404, 'Sessão não encontrada');
   }
 
+  const tier = (await this.repository.getSubscriptionTier(psychologistId)) as SubscriptionTier;
+  const safeTier = PLAN_LIMITS[tier] ? tier : 'free';
+  const transcriptionLimit = PLAN_LIMITS[safeTier].maxTranscriptionsPerMonth;
+
+  if (transcriptionLimit !== Infinity) {
+    const usedThisMonth = await this.repository.countTranscriptionsThisMonth(psychologistId);
+    if (usedThisMonth >= transcriptionLimit) {
+      throw makeHttpError(
+        403,
+        `Limite atingido! Seu plano ${PLAN_LIMITS[safeTier].name} permite apenas ${transcriptionLimit} transcrições por mês. Faça upgrade para continuar.`,
+      );
+    }
+  }
+
   const { error } = await this.app.supabase.functions.invoke('process-session-audio', {
     body: { sessionId },
     headers: {
