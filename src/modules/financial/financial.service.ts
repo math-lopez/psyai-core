@@ -355,7 +355,7 @@ export class FinancialService {
           pixAddressKeyType: mapPixKeyType(settings.pix_key_type),
           description:       `Repasse PsiAI - ${charge.id.slice(0, 8)}`,
         });
-        await this.repository.markTransferred(charge.id, transfer.id);
+        await this.repository.markTransferred(charge.id, transfer.id, transferAmount);
         this.fastify.log.info({ chargeId: charge.id, transferId: transfer.id }, "[repasse] Transferência realizada");
       } catch (err) {
         this.fastify.log.error({ err, chargeId: charge.id }, "[repasse] Falha ao transferir");

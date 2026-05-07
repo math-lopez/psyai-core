@@ -38,6 +38,7 @@ export interface FinancialCharge {
   billing_type: BillingType | null;
   asaas_payment_id: string | null;
   transfer_id: string | null;
+  transfer_amount: number | null;
   transferred_at: string | null;
   created_at: string;
   updated_at: string;

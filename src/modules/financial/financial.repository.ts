@@ -243,10 +243,10 @@ export class FinancialRepository {
     return (data ?? []).filter((c) => c.paid_at !== null) as PendingTransfer[];
   }
 
-  async markTransferred(chargeId: string, transferId: string): Promise<void> {
+  async markTransferred(chargeId: string, transferId: string, transferAmount: number): Promise<void> {
     const { error } = await this.supabase
       .from("financial_charges")
-      .update({ transfer_id: transferId, transferred_at: new Date().toISOString() })
+      .update({ transfer_id: transferId, transferred_at: new Date().toISOString(), transfer_amount: transferAmount })
       .eq("id", chargeId);
     if (error) throw error;
   }
