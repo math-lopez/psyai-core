@@ -1,0 +1,25 @@
+{
+  "patientId": "p-teste-001",
+  "psychologistId": "psi-teste-001",
+  "patient": {
+    "id": "p-teste-001",
+    "name": "Paciente Teste"
+  },
+  "sessions": [
+    {
+      "id": "sessao-001",
+      "sessionDate": "2025-04-01",
+      "sessionSummaryManual": "Paciente não compareceu à sessão devido à intercorrência familiar, relatando que o filho encontrava-se doente. Falta justificada. Recomenda-se manutenção do acompanhamento e reagendamento da sessão."
+    },
+    {
+      "id": "sessao-002",
+      "sessionDate": "2025-04-08",
+      "sessionSummaryManual": "Paciente comparece à sessão relatando dificuldades no ambiente de trabalho, referindo situação de assédio por parte de um colega, o que tem gerado desconforto, insegurança e impacto emocional significativo. Demonstra incômodo com a situação, apresentando sinais de tensão e necessidade de manejo assertivo diante do contexto. No âmbito familiar, relata continuidade de dificuldades na relação com a mãe, a qual percebe como emocionalmente ineficaz, o que contribui para sentimentos de frustração e sobrecarga emocional. Apesar disso, paciente sinaliza estar em processo de tentativa de ajuste e melhor regulação de suas emoções, demonstrando maior consciência sobre suas reações e necessidade de mudança. Durante a sessão, foram trabalhados aspectos relacionados à validação emocional, fortalecimento da autonomia, desenvolvimento de estratégias de enfrentamento e manejo de limites, especialmente no contexto profissional. Incentivada a construção de respostas mais assertivas e protetivas diante da situação relatada. Paciente apresenta-se engajada no processo terapêutico, com evolução gradual na percepção de si e nas tentativas de reorganização emocional frente às demandas atuais."
+    },
+    {
+      "id": "sessao-003",
+      "sessionDate": "2025-04-15",
+      "sessionSummaryManual": "O paciente demonstra discurso de autonomia e forte desejo de conduzir a própria vida, apresentando-se decidido quanto a mudanças pessoais. No entanto, observa-se um padrão recorrente de autossabotagem, com dificuldades em sustentar decisões e manter estabilidade emocional, alternando entre momentos de determinação e desorganização interna. Evidencia-se fragilidade no equilíbrio psíquico, possivelmente influenciada por uma dinâmica familiar marcada por confusão, limites difusos e relações pouco estruturadas, o que pode impactar na construção de identidade, segurança emocional e capacidade de autorregulação. Faz-se necessária a continuidade do acompanhamento terapêutico, com foco na identificação dos gatilhos de autossabotagem, fortalecimento de recursos internos, desenvolvimento de consistência nas escolhas e elaboração das influências familiares, visando maior estabilidade e autonomia funcional."
+    }
+  ]
+}
