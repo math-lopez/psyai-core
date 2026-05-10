@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 import nltk
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Security
+from fastapi import FastAPI, HTTPException, Request, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from algorithm.pipeline import analyze_session
@@ -73,16 +73,20 @@ def process_patient_analysis(
 
 @app.post("/synthesize-patient", response_model=SynthesisResponse)
 def synthesize_patient_endpoint(
+    req: Request,
     request: AnalysisRequest,
     _token: str = Security(_verify_token),
 ):
     if not request.sessions:
         raise HTTPException(status_code=400, detail="Nenhuma sessão fornecida")
 
+    request_id = getattr(req.state, "request_id", "")
+
     try:
         result = synthesize_patient(
             patient=request.patient.model_dump(),
             sessions=[s.model_dump() for s in request.sessions],
+            request_id=request_id,
         )
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
