@@ -15,8 +15,7 @@ const envSchema = z.object({
     .min(1, "SUPABASE_SERVICE_ROLE_KEY é obrigatória"),
 
   // Schedules dos cron jobs (padrão cron, timezone America/Sao_Paulo)
-  CRON_RUN_TRANSFERS_SCHEDULE: z.string().default("0 8 * * *"),
-  CRON_TEST_SCHEDULE: z.string().default("0 8 * * *"),
+  CRON_RUN_TRANSFERS_SCHEDULE: z.string().default("0 8 * * *")
 });
 
 const parsed = envSchema.safeParse(process.env);

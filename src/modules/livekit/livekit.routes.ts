@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { generateToken, getRoomService } from './livekit.service';
 import { sendSessionLinkEmail } from '../../services/emailService';
-import { sendWhatsAppSessionStarted } from '../../services/twilioService';
+import { sendWhatsAppSessionStarted } from '../../services/whatsappService';
 import { SessionRepository } from '../sessions/session.repository';
 import { PLAN_LIMITS, SubscriptionTier } from '../../config/plans';
 

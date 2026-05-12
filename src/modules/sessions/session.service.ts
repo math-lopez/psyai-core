@@ -268,22 +268,37 @@ export class SessionService {
   }
 
   async processAudio(sessionId: string, psychologistId: string, userToken: string) {
-  const session = await this.repository.findRawByIdAndPsychologist(sessionId, psychologistId);
+    const session = await this.repository.findRawByIdAndPsychologist(sessionId, psychologistId);
 
-  if (!session) {
-    throw makeHttpError(404, 'Sessão não encontrada');
+    if (!session) {
+      throw makeHttpError(404, 'Sessão não encontrada');
+    }
+
+    const tier = (await this.repository.getSubscriptionTier(psychologistId)) as SubscriptionTier;
+    const safeTier = PLAN_LIMITS[tier] ? tier : 'free';
+    const limit = PLAN_LIMITS[safeTier].maxTranscriptionsPerMonth;
+
+    if (limit !== Infinity) {
+      const used = await this.repository.countTranscriptionsThisMonth(psychologistId);
+      if (used >= limit) {
+        throw makeHttpError(
+          403,
+          `Limite de transcrições atingido! Seu plano ${PLAN_LIMITS[safeTier].name} permite ${limit} transcrições por mês. Faça upgrade para continuar.`
+        );
+      }
+    }
+
+    const { error } = await this.app.supabase.functions.invoke('process-session-audio', {
+      body: { sessionId },
+      headers: {
+        Authorization: `Bearer ${userToken}`,
+      },
+    });
+
+    if (error) {
+      throw makeHttpError(500, 'Erro ao solicitar processamento do áudio');
+    }
+
+    return { success: true };
   }
-
-  const { error } = await this.app.supabase.functions.invoke('process-session-audio', {
-    body: { sessionId },
-    headers: {
-      Authorization: `Bearer ${userToken}`,
-    },
-  });
-
-  if (error) {
-    throw makeHttpError(500, 'Erro ao solicitar processamento do áudio');
-  }
-
-  return { success: true };
-}}
+}

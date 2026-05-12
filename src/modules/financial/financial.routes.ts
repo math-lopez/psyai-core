@@ -1,10 +1,28 @@
 import { FastifyInstance, FastifyPluginAsync } from "fastify";
 import { FinancialService } from "./financial.service";
+import { PLAN_LIMITS, SubscriptionTier } from "../../config/plans";
 
 const financialRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   const service = new FinancialService(fastify);
 
   fastify.addHook("preHandler", fastify.authenticate);
+
+  fastify.addHook("preHandler", async (request) => {
+    const { data: profile } = await fastify.supabase
+      .from("profiles")
+      .select("subscription_tier")
+      .eq("id", request.authUser.id)
+      .maybeSingle();
+
+    const tier = (profile?.subscription_tier ?? "free") as SubscriptionTier;
+    const safeTier = PLAN_LIMITS[tier] ? tier : "free";
+
+    if (!PLAN_LIMITS[safeTier].hasFinancial) {
+      throw fastify.httpErrors.forbidden(
+        `Módulo financeiro não disponível no plano ${PLAN_LIMITS[safeTier].name}. Faça upgrade para o Profissional.`
+      );
+    }
+  });
 
   fastify.get("/v1/financial/settings", async (request, reply) => {
     const data = await service.getSettings(request.authUser.id);

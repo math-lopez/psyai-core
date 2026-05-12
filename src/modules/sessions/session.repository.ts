@@ -222,10 +222,28 @@ export class SessionRepository {
     return count ?? 0;
   }
 
+  async countTranscriptionsThisMonth(psychologistId: string) {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
+    const { count, error } = await this.supabase
+      .from('sessions')
+      .select('id', { count: 'exact', head: true })
+      .eq('psychologist_id', psychologistId)
+      .not('audio_file_path', 'is', null)
+      .in('processing_status', ['queued', 'processing', 'completed'])
+      .gte('created_at', firstDay)
+      .lte('created_at', lastDay);
+
+    if (error) throw error;
+    return count ?? 0;
+  }
+
   async findPsychologistsWithReminderEnabled() {
     const { data, error } = await this.supabase
       .from('profiles')
-      .select('id, reminder_days_before, reminder_time, whatsapp_reminder_enabled')
+      .select('id, reminder_days_before, reminder_time, whatsapp_reminder_enabled, phone')
       .eq('reminder_enabled', true);
 
     if (error) throw error;
@@ -234,6 +252,7 @@ export class SessionRepository {
       reminder_days_before: number;
       reminder_time: number;
       whatsapp_reminder_enabled: boolean;
+      phone: string | null;
     }>;
   }
 

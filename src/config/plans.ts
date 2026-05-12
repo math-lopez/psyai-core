@@ -17,16 +17,23 @@ export interface PlanLimits {
   description: string;
 }
 
+function envInt(name: string, fallback: number): number {
+  const v = process.env[name];
+  if (!v) return fallback;
+  const n = parseInt(v, 10);
+  return isNaN(n) ? fallback : n;
+}
+
 export const PLAN_LIMITS: Record<SubscriptionTier, PlanLimits> = {
   free: {
     name: 'Iniciante',
     price: 0,
     priceYearly: 0,
-    maxPatients: 3,
+    maxPatients: envInt('PLAN_FREE_MAX_PATIENTS', 3),
     maxSessionsPerMonth: Infinity,
     maxVideoCallsPerMonth: Infinity,
-    maxTranscriptionsPerMonth: 3,
-    maxSynthesesPerMonth: 2,
+    maxTranscriptionsPerMonth: envInt('PLAN_FREE_MAX_TRANSCRIPTIONS', 3),
+    maxSynthesesPerMonth: envInt('PLAN_FREE_MAX_SYNTHESES', 2),
     hasTherapeuticInsights: false,
     hasFinancial: false,
     hasWhatsAppReminders: false,
@@ -41,8 +48,8 @@ export const PLAN_LIMITS: Record<SubscriptionTier, PlanLimits> = {
     maxPatients: Infinity,
     maxSessionsPerMonth: Infinity,
     maxVideoCallsPerMonth: Infinity,
-    maxTranscriptionsPerMonth: 40,
-    maxSynthesesPerMonth: 30,
+    maxTranscriptionsPerMonth: envInt('PLAN_PRO_MAX_TRANSCRIPTIONS', 40),
+    maxSynthesesPerMonth: envInt('PLAN_PRO_MAX_SYNTHESES', 30),
     hasTherapeuticInsights: true,
     hasFinancial: true,
     hasWhatsAppReminders: true,

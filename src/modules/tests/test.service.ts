@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { TestRepository } from './test.repository';
 import { CreateTemplateInput, CreateApplicationInput, SubmitTestInput, ScoringConfig } from './test.types';
 import { sendTestApplicationEmail } from '../../services/emailService';
+import { PLAN_LIMITS, SubscriptionTier } from '../../config/plans';
 
 function makeHttpError(statusCode: number, message: string) {
   const err = new Error(message) as Error & { statusCode?: number };
@@ -76,6 +77,22 @@ export class TestService {
   // ── Applications ────────────────────────────────────────────────────────────
 
   async applyTest(psychologistId: string, input: CreateApplicationInput) {
+    const { data: profile } = await this.app.supabase
+      .from('profiles')
+      .select('subscription_tier')
+      .eq('id', psychologistId)
+      .maybeSingle();
+
+    const tier = (profile?.subscription_tier ?? 'free') as SubscriptionTier;
+    const safeTier = PLAN_LIMITS[tier] ? tier : 'free';
+
+    if (!PLAN_LIMITS[safeTier].hasPsychologicalTests) {
+      throw makeHttpError(
+        403,
+        `Testes psicológicos não estão disponíveis no plano ${PLAN_LIMITS[safeTier].name}. Faça upgrade para o Profissional.`
+      );
+    }
+
     const application = await this.repository.createApplication(psychologistId, input);
 
     // Dispara email sem bloquear a resposta
