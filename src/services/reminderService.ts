@@ -7,7 +7,7 @@ export class ReminderService {
   private readonly repository: SessionRepository;
 
   constructor(
-    private readonly supabase: SupabaseClient,
+    supabase: SupabaseClient,
     private readonly log: { info: (msg: string) => void; warn: (msg: string) => void; error: (obj: object, msg: string) => void }
   ) {
     this.repository = new SessionRepository(supabase);
@@ -40,11 +40,20 @@ export class ReminderService {
         const psychologistName = await this.repository.findPsychologistNameById(session.psychologist_id);
         const psyName = psychologistName || 'seu psicólogo';
 
+        const backendUrl = process.env.BACKEND_URL || 'https://api.psiai.com.br';
+        const tokens = await this.repository.createActionTokens(session.id, session.session_date);
+        const actionUrls = {
+          confirm:    `${backendUrl}/v1/public/session-action?token=${tokens.confirm}`,
+          absent:     `${backendUrl}/v1/public/session-action?token=${tokens.absent}`,
+          reschedule: `${backendUrl}/v1/public/session-action?token=${tokens.reschedule}`,
+        };
+
         await sendSessionReminderEmail({
           patientName: patient.full_name,
           patientEmail: patient.email,
           psychologistName: psyName,
           sessionDate: session.session_date,
+          actionUrls,
         });
 
         if (psychSettings?.whatsapp_reminder_enabled && patient.phone) {
@@ -54,6 +63,7 @@ export class ReminderService {
               patientPhone: patient.phone,
               psychologistName: psyName,
               sessionDate: session.session_date,
+              sessionId: session.id,
               psychologistPhone: psychSettings.phone ?? null,
             });
             this.log.info(`[reminder] WhatsApp enviado para sessão ${session.id}`);

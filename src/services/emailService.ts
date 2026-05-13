@@ -4,108 +4,298 @@ import { ptBR } from 'date-fns/locale';
 import QRCode from 'qrcode';
 import { buildPixPayload } from '../lib/pix';
 
+function emailHeader() {
+  return `
+    <tr>
+      <td style="background:#4f46e5;padding:32px 40px;text-align:center;">
+        <p style="margin:0;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">PsiAI</p>
+        <p style="margin:6px 0 0;font-size:12px;color:#a5b4fc;font-weight:500;">Plataforma para Psicólogos</p>
+      </td>
+    </tr>`;
+}
+
+function emailFooter() {
+  return `
+    <tr>
+      <td style="background:#f8fafc;padding:24px 40px;text-align:center;border-top:1px solid #f1f5f9;">
+        <p style="margin:0;font-size:11px;color:#cbd5e1;">Este é um e-mail automático, por favor não responda.</p>
+      </td>
+    </tr>`;
+}
+
+function emailWrapper(content: string) {
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+          ${emailHeader()}
+          ${content}
+          ${emailFooter()}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+function actionButton(href: string, label: string, bg: string) {
+  return `<a href="${href}" style="display:inline-block;background:${bg};color:#ffffff;font-weight:700;font-size:14px;text-decoration:none;padding:14px 28px;border-radius:12px;margin:4px;">${label}</a>`;
+}
+
+async function sendEmail(params: { from: string; to: string; subject: string; html: string }) {
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const result = await resend.emails.send(params);
+  if (result.error) throw new Error(`Resend error: ${result.error.message}`);
+  return result;
+}
+
 export async function sendSessionReminderEmail(params: {
   patientName: string;
   patientEmail: string;
   psychologistName: string;
   sessionDate: string;
+  actionUrls?: { confirm: string; absent: string; reschedule: string };
 }) {
-  const resend = new Resend(process.env.RESEND_API_KEY);
   const FROM = process.env.RESEND_FROM_EMAIL || 'noreply@psiai.com.br';
-
-  const { patientName, patientEmail, psychologistName, sessionDate } = params;
+  const { patientName, patientEmail, psychologistName, sessionDate, actionUrls } = params;
 
   const date = new Date(sessionDate);
   const formattedDate = format(date, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR });
   const formattedTime = format(date, 'HH:mm', { locale: ptBR });
 
-  const fromAddress = `${psychologistName} via PsiAI <${FROM}>`;
+  const actionsBlock = actionUrls ? `
+    <p style="margin:0 0 16px;font-size:14px;font-weight:600;color:#374151;">O que deseja fazer?</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+      <tr>
+        <td align="center">
+          ${actionButton(actionUrls.confirm, 'Confirmar presença ✓', '#16a34a')}
+          ${actionButton(actionUrls.absent, 'Informar ausência', '#dc2626')}
+          ${actionButton(actionUrls.reschedule, 'Reagendar', '#4f46e5')}
+        </td>
+      </tr>
+    </table>` : `
+    <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">
+      Caso precise remarcar ou cancelar, entre em contato com seu psicólogo com antecedência.
+    </p>`;
 
-  console.log(`[email] Enviando lembrete de sessão para ${patientEmail}`);
-
-  const result = await resend.emails.send({
-    from: fromAddress,
-    to: patientEmail,
-    subject: `Lembrete: sua sessão é amanhã às ${formattedTime}`,
-    html: `
-      <!DOCTYPE html>
-      <html lang="pt-BR">
-      <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      </head>
-      <body style="margin:0;padding:0;background:#f8fafc;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:40px 20px;">
+  const html = emailWrapper(`
+    <tr>
+      <td style="padding:40px 40px 32px;">
+        <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:1px;">Lembrete de sessão</p>
+        <h1 style="margin:0 0 24px;font-size:24px;font-weight:900;color:#0f172a;line-height:1.2;">Olá, ${patientName}!</h1>
+        <p style="margin:0 0 32px;font-size:15px;color:#475569;line-height:1.6;">
+          Sua sessão com <strong style="color:#0f172a;">${psychologistName}</strong> está agendada para <strong style="color:#0f172a;">amanhã</strong>.
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5ff;border-radius:16px;margin-bottom:32px;">
           <tr>
-            <td align="center">
-              <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
-
-                <!-- Header -->
-                <tr>
-                  <td style="background:#4f46e5;padding:32px 40px;text-align:center;">
-                    <p style="margin:0;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">PsiAI</p>
-                    <p style="margin:6px 0 0;font-size:12px;color:#a5b4fc;font-weight:500;">Plataforma para Psicólogos</p>
-                  </td>
-                </tr>
-
-                <!-- Body -->
-                <tr>
-                  <td style="padding:40px 40px 32px;">
-                    <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:1px;">Lembrete de sessão</p>
-                    <h1 style="margin:0 0 24px;font-size:24px;font-weight:900;color:#0f172a;line-height:1.2;">Olá, ${patientName}!</h1>
-                    <p style="margin:0 0 32px;font-size:15px;color:#475569;line-height:1.6;">
-                      Este é um lembrete de que sua sessão com <strong style="color:#0f172a;">${psychologistName}</strong> está agendada para <strong style="color:#0f172a;">amanhã</strong>. Confira os detalhes abaixo.
-                    </p>
-
-                    <!-- Session card -->
-                    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5ff;border-radius:16px;margin-bottom:32px;">
-                      <tr>
-                        <td style="padding:28px 32px;">
-                          <table width="100%" cellpadding="0" cellspacing="0">
-                            <tr>
-                              <td style="padding-bottom:16px;border-bottom:1px solid #e0e7ff;">
-                                <p style="margin:0 0 4px;font-size:10px;font-weight:800;color:#818cf8;text-transform:uppercase;letter-spacing:1px;">Data</p>
-                                <p style="margin:0;font-size:16px;font-weight:800;color:#1e1b4b;">${formattedDate}</p>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td style="padding-top:16px;">
-                                <p style="margin:0 0 4px;font-size:10px;font-weight:800;color:#818cf8;text-transform:uppercase;letter-spacing:1px;">Horário</p>
-                                <p style="margin:0;font-size:16px;font-weight:800;color:#1e1b4b;">${formattedTime}</p>
-                              </td>
-                            </tr>
-                          </table>
-                        </td>
-                      </tr>
-                    </table>
-
-                    <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">
-                      Caso precise remarcar ou cancelar, entre em contato com seu psicólogo com antecedência.
-                    </p>
-                  </td>
-                </tr>
-
-                <!-- Footer -->
-                <tr>
-                  <td style="background:#f8fafc;padding:24px 40px;text-align:center;border-top:1px solid #f1f5f9;">
-                    <p style="margin:0;font-size:11px;color:#cbd5e1;">Este é um e-mail automático, por favor não responda.</p>
-                  </td>
-                </tr>
-
-              </table>
+            <td style="padding:28px 32px;">
+              <p style="margin:0 0 4px;font-size:10px;font-weight:800;color:#818cf8;text-transform:uppercase;letter-spacing:1px;">Data</p>
+              <p style="margin:0 0 16px;font-size:16px;font-weight:800;color:#1e1b4b;border-bottom:1px solid #e0e7ff;padding-bottom:16px;">${formattedDate}</p>
+              <p style="margin:0 0 4px;font-size:10px;font-weight:800;color:#818cf8;text-transform:uppercase;letter-spacing:1px;">Horário</p>
+              <p style="margin:0;font-size:16px;font-weight:800;color:#1e1b4b;">${formattedTime}</p>
             </td>
           </tr>
         </table>
-      </body>
-      </html>
-    `,
-  });
+        ${actionsBlock}
+      </td>
+    </tr>`);
 
-  if (result.error) {
-    throw new Error(`Resend error: ${result.error.message}`);
-  }
-
+  console.log(`[email] Enviando lembrete de sessão para ${patientEmail}`);
+  const result = await sendEmail({ from: `${psychologistName} via PsiAI <${FROM}>`, to: patientEmail, subject: `Lembrete: sua sessão é amanhã às ${formattedTime}`, html });
   console.log(`[email] Lembrete enviado com sucesso. id=${result.data?.id}`);
+}
+
+export async function sendPatientConfirmedEmail(params: {
+  patientName: string;
+  patientEmail: string;
+  psychologistName: string;
+  sessionDate: string;
+}) {
+  const FROM = process.env.RESEND_FROM_EMAIL || 'noreply@psiai.com.br';
+  const date = new Date(params.sessionDate);
+  const formattedDate = format(date, "EEEE, dd 'de' MMMM", { locale: ptBR });
+  const formattedTime = format(date, 'HH:mm', { locale: ptBR });
+
+  const html = emailWrapper(`
+    <tr>
+      <td style="padding:40px 40px 32px;">
+        <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:1px;">Presença confirmada</p>
+        <h1 style="margin:0 0 16px;font-size:24px;font-weight:900;color:#0f172a;">Tudo certo, ${params.patientName}!</h1>
+        <p style="margin:0 0 0;font-size:15px;color:#475569;line-height:1.6;">
+          Sua presença na sessão com <strong style="color:#0f172a;">${params.psychologistName}</strong> em <strong style="color:#0f172a;">${formattedDate} às ${formattedTime}</strong> foi confirmada. Até lá!
+        </p>
+      </td>
+    </tr>`);
+
+  await sendEmail({ from: `${params.psychologistName} via PsiAI <${FROM}>`, to: params.patientEmail, subject: 'Presença confirmada — te vejo em breve!', html });
+  console.log(`[email] Confirmação de presença enviada para ${params.patientEmail}`);
+}
+
+export async function sendPatientAbsentEmail(params: {
+  patientName: string;
+  patientEmail: string;
+  psychologistName: string;
+}) {
+  const FROM = process.env.RESEND_FROM_EMAIL || 'noreply@psiai.com.br';
+
+  const html = emailWrapper(`
+    <tr>
+      <td style="padding:40px 40px 32px;">
+        <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:1px;">Ausência registrada</p>
+        <h1 style="margin:0 0 16px;font-size:24px;font-weight:900;color:#0f172a;">Recebemos seu aviso, ${params.patientName}.</h1>
+        <p style="margin:0;font-size:15px;color:#475569;line-height:1.6;">
+          Sua ausência foi registrada e <strong style="color:#0f172a;">${params.psychologistName}</strong> foi notificado(a). Entre em contato para reagendar quando quiser.
+        </p>
+      </td>
+    </tr>`);
+
+  await sendEmail({ from: `${params.psychologistName} via PsiAI <${FROM}>`, to: params.patientEmail, subject: 'Ausência registrada', html });
+  console.log(`[email] Confirmação de ausência enviada para ${params.patientEmail}`);
+}
+
+export async function sendPatientRescheduleRequestedEmail(params: {
+  patientName: string;
+  patientEmail: string;
+  psychologistName: string;
+}) {
+  const FROM = process.env.RESEND_FROM_EMAIL || 'noreply@psiai.com.br';
+
+  const html = emailWrapper(`
+    <tr>
+      <td style="padding:40px 40px 32px;">
+        <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#4f46e5;text-transform:uppercase;letter-spacing:1px;">Reagendamento solicitado</p>
+        <h1 style="margin:0 0 16px;font-size:24px;font-weight:900;color:#0f172a;">Solicitação enviada, ${params.patientName}!</h1>
+        <p style="margin:0;font-size:15px;color:#475569;line-height:1.6;">
+          Sua solicitação de reagendamento foi recebida. <strong style="color:#0f172a;">${params.psychologistName}</strong> entrará em contato para definir um novo horário.
+        </p>
+      </td>
+    </tr>`);
+
+  await sendEmail({ from: `${params.psychologistName} via PsiAI <${FROM}>`, to: params.patientEmail, subject: 'Solicitação de reagendamento recebida', html });
+  console.log(`[email] Confirmação de reagendamento enviada para ${params.patientEmail}`);
+}
+
+export async function sendPsychologistAbsenceNotificationEmail(params: {
+  psychologistName: string;
+  psychologistEmail: string;
+  patientName: string;
+  sessionDate: string;
+}) {
+  const FROM = process.env.RESEND_FROM_EMAIL || 'noreply@psiai.com.br';
+  const date = new Date(params.sessionDate);
+  const formattedDate = format(date, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+
+  const html = emailWrapper(`
+    <tr>
+      <td style="padding:40px 40px 32px;">
+        <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:1px;">Aviso de ausência</p>
+        <h1 style="margin:0 0 16px;font-size:24px;font-weight:900;color:#0f172a;">Olá, ${params.psychologistName}!</h1>
+        <p style="margin:0;font-size:15px;color:#475569;line-height:1.6;">
+          <strong style="color:#0f172a;">${params.patientName}</strong> informou que não poderá comparecer à sessão de <strong style="color:#0f172a;">${formattedDate}</strong>.
+        </p>
+      </td>
+    </tr>`);
+
+  await sendEmail({ from: `PsiAI <${FROM}>`, to: params.psychologistEmail, subject: `${params.patientName} informou ausência na sessão de ${formattedDate}`, html });
+  console.log(`[email] Notificação de ausência enviada para psicólogo ${params.psychologistEmail}`);
+}
+
+export async function sendPsychologistRescheduleNotificationEmail(params: {
+  psychologistName: string;
+  psychologistEmail: string;
+  patientName: string;
+  sessionDate: string;
+}) {
+  const FROM = process.env.RESEND_FROM_EMAIL || 'noreply@psiai.com.br';
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'https://psiai.com.br';
+  const date = new Date(params.sessionDate);
+  const formattedDate = format(date, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+
+  const html = emailWrapper(`
+    <tr>
+      <td style="padding:40px 40px 32px;">
+        <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#4f46e5;text-transform:uppercase;letter-spacing:1px;">Solicitação de reagendamento</p>
+        <h1 style="margin:0 0 16px;font-size:24px;font-weight:900;color:#0f172a;">Olá, ${params.psychologistName}!</h1>
+        <p style="margin:0 0 32px;font-size:15px;color:#475569;line-height:1.6;">
+          <strong style="color:#0f172a;">${params.patientName}</strong> solicitou o reagendamento da sessão de <strong style="color:#0f172a;">${formattedDate}</strong>. Acesse a plataforma para gerenciar a solicitação.
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td align="center">
+              <a href="${FRONTEND_URL}/sessoes" style="display:inline-block;background:#4f46e5;color:#ffffff;font-weight:700;font-size:15px;text-decoration:none;padding:16px 40px;border-radius:12px;">
+                Gerenciar na plataforma →
+              </a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>`);
+
+  await sendEmail({ from: `PsiAI <${FROM}>`, to: params.psychologistEmail, subject: `${params.patientName} solicitou reagendamento`, html });
+  console.log(`[email] Notificação de reagendamento enviada para psicólogo ${params.psychologistEmail}`);
+}
+
+export async function sendPatientRescheduleApprovedEmail(params: {
+  patientName: string;
+  patientEmail: string;
+  psychologistName: string;
+  newSessionDate: string;
+}) {
+  const FROM = process.env.RESEND_FROM_EMAIL || 'noreply@psiai.com.br';
+  const date = new Date(params.newSessionDate);
+  const formattedDate = format(date, "EEEE, dd 'de' MMMM", { locale: ptBR });
+  const formattedTime = format(date, 'HH:mm', { locale: ptBR });
+
+  const html = emailWrapper(`
+    <tr>
+      <td style="padding:40px 40px 32px;">
+        <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:1px;">Reagendamento confirmado</p>
+        <h1 style="margin:0 0 16px;font-size:24px;font-weight:900;color:#0f172a;">Ótima notícia, ${params.patientName}!</h1>
+        <p style="margin:0 0 32px;font-size:15px;color:#475569;line-height:1.6;">
+          <strong style="color:#0f172a;">${params.psychologistName}</strong> confirmou seu reagendamento. Confira a nova data:
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5ff;border-radius:16px;margin-bottom:24px;">
+          <tr>
+            <td style="padding:28px 32px;">
+              <p style="margin:0 0 4px;font-size:10px;font-weight:800;color:#818cf8;text-transform:uppercase;letter-spacing:1px;">Nova data</p>
+              <p style="margin:0 0 16px;font-size:16px;font-weight:800;color:#1e1b4b;border-bottom:1px solid #e0e7ff;padding-bottom:16px;">${formattedDate}</p>
+              <p style="margin:0 0 4px;font-size:10px;font-weight:800;color:#818cf8;text-transform:uppercase;letter-spacing:1px;">Horário</p>
+              <p style="margin:0;font-size:16px;font-weight:800;color:#1e1b4b;">${formattedTime}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>`);
+
+  await sendEmail({ from: `${params.psychologistName} via PsiAI <${FROM}>`, to: params.patientEmail, subject: `Reagendamento confirmado — ${formattedDate} às ${formattedTime}`, html });
+  console.log(`[email] Aprovação de reagendamento enviada para ${params.patientEmail}`);
+}
+
+export async function sendPatientRescheduleRejectedEmail(params: {
+  patientName: string;
+  patientEmail: string;
+  psychologistName: string;
+}) {
+  const FROM = process.env.RESEND_FROM_EMAIL || 'noreply@psiai.com.br';
+
+  const html = emailWrapper(`
+    <tr>
+      <td style="padding:40px 40px 32px;">
+        <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:1px;">Reagendamento não aprovado</p>
+        <h1 style="margin:0 0 16px;font-size:24px;font-weight:900;color:#0f172a;">Olá, ${params.patientName}.</h1>
+        <p style="margin:0;font-size:15px;color:#475569;line-height:1.6;">
+          Infelizmente <strong style="color:#0f172a;">${params.psychologistName}</strong> não pôde aprovar o reagendamento desta sessão. Entre em contato diretamente para verificar outras possibilidades de horário.
+        </p>
+      </td>
+    </tr>`);
+
+  await sendEmail({ from: `${params.psychologistName} via PsiAI <${FROM}>`, to: params.patientEmail, subject: 'Reagendamento não aprovado', html });
+  console.log(`[email] Recusa de reagendamento enviada para ${params.patientEmail}`);
 }
 
 export async function sendTestApplicationEmail(params: {

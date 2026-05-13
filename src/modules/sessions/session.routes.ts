@@ -1,10 +1,12 @@
 import { FastifyInstance } from 'fastify';
 import { SessionService } from './session.service';
+import { SessionActionService } from './session-action.service';
 import { createSessionSchema, updateSessionSchema, createRecurrentSessionSchema } from './session.schemas';
 import { replyValidationError } from '../../shared/errors/validation-helper.js';
 
 export default async function sessionRoutes(app: FastifyInstance) {
   const service = new SessionService(app);
+  const actionService = () => new SessionActionService(app.supabase);
 
   app.get('/v1/sessions/stats', { preHandler: [app.authenticate] }, async (request) => {
     return service.getStats(request.authUser.id);
@@ -64,5 +66,25 @@ export default async function sessionRoutes(app: FastifyInstance) {
 
   app.post('/v1/sessions/:id/process-audio', { preHandler: [app.authenticate] }, async (request: any) => {
     return service.processAudio(request.params.id, request.authUser.id, request.userToken);
+  });
+
+  // ── Reschedule requests ──────────────────────────────────────────────────
+
+  app.get('/v1/sessions/reschedule-requests', { preHandler: [app.authenticate] }, async (request: any) => {
+    const repo = new (await import('./session.repository')).SessionRepository(app.supabase);
+    return repo.listPendingRescheduleRequests(request.authUser.id);
+  });
+
+  app.post('/v1/sessions/reschedule-requests/:requestId/approve', { preHandler: [app.authenticate] }, async (request: any, reply) => {
+    const { new_session_date } = (request.body ?? {}) as { new_session_date?: string };
+    if (!new_session_date) return reply.status(400).send({ message: 'new_session_date é obrigatório' });
+
+    await actionService().approveReschedule(request.params.requestId, request.authUser.id, new_session_date);
+    return { ok: true };
+  });
+
+  app.post('/v1/sessions/reschedule-requests/:requestId/reject', { preHandler: [app.authenticate] }, async (request: any) => {
+    await actionService().rejectReschedule(request.params.requestId, request.authUser.id);
+    return { ok: true };
   });
 }

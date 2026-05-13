@@ -25,6 +25,8 @@ import { featuresRoutes } from "./modules/features/features.routes";
 import livekitRoutes from "./modules/livekit/livekit.routes";
 import financialRoutes from "./modules/financial/financial.routes";
 import financialPublicRoutes from "./modules/financial/financial.public.routes";
+import sessionActionRoutes from "./modules/sessions/session-action.routes";
+import scheduleRoutes from "./modules/schedule/schedule.routes";
 import { registerTransferJob } from "./modules/financial/transfer.job";
 import profileRoutes from "./modules/profile/profile.routes";
 import testRoutes from "./modules/tests/test.routes";
@@ -288,6 +290,8 @@ export async function buildApp() {
 
   await app.register(patientActivateRoutes);
   await app.register(financialPublicRoutes);
+  await app.register(sessionActionRoutes);
+  await app.register(scheduleRoutes);
   await app.register(patientRoutes);
   await app.register(sessionRoutes);
   await app.register(storageRoutes);
