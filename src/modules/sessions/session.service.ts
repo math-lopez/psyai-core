@@ -165,7 +165,7 @@ export class SessionService {
         ...baseFields,
         session_date: currentDate.toISOString(),
         psychologist_id: psychologistId,
-        processing_status: 'draft',
+        processing_status: 'appointment',
       });
       currentDate = new Date(currentDate.getTime() + 7 * 24 * 60 * 60 * 1000);
     }
@@ -230,6 +230,21 @@ export class SessionService {
 
     await this.repository.delete(id, psychologistId);
     return { success: true };
+  }
+
+  async startSession(id: string, psychologistId: string) {
+    const session = await this.repository.findRawByIdAndPsychologist(id, psychologistId);
+
+    if (!session) {
+      throw makeHttpError(404, 'Sessão não encontrada');
+    }
+
+    if (session.processing_status !== 'appointment') {
+      return { success: true, processing_status: session.processing_status };
+    }
+
+    await this.repository.update(id, psychologistId, { processing_status: 'draft' });
+    return { success: true, processing_status: 'draft' };
   }
 
   async finishSession(id: string, psychologistId: string, userToken: string) {

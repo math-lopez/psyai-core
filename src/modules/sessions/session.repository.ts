@@ -124,7 +124,7 @@ export class SessionRepository {
       .insert({
         ...payload,
         psychologist_id: psychologistId,
-        processing_status: 'draft',
+        processing_status: 'appointment',
       })
       .select('*')
       .single();

@@ -60,6 +60,10 @@ export default async function sessionRoutes(app: FastifyInstance) {
     return service.delete(request.params.id, request.authUser.id);
   });
 
+  app.post('/v1/sessions/:id/start', { preHandler: [app.authenticate] }, async (request: any) => {
+    return service.startSession(request.params.id, request.authUser.id);
+  });
+
   app.post('/v1/sessions/:id/finish', { preHandler: [app.authenticate] }, async (request: any) => {
     return service.finishSession(request.params.id, request.authUser.id, request.userToken);
   });

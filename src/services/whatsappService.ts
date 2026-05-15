@@ -281,8 +281,7 @@ export async function sendWhatsAppSessionStarted(params: {
 
   await sendTemplate(toPhone, 'psiai_sessao_iniciada', [
     params.patientName,
-    params.psychologistName,
-    params.joinUrl,
+    params.psychologistName
   ]);
 
   console.log(`[whatsapp] Notificação de sessão iniciada enviada para ${toPhone}`);
