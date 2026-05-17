@@ -433,6 +433,15 @@ export class SessionRepository {
     if (error) throw error;
   }
 
+  async cancelSession(sessionId: string) {
+    const { error } = await this.supabase
+      .from('sessions')
+      .update({ status: 'cancelled', processing_status: 'cancelled' })
+      .eq('id', sessionId);
+
+    if (error) throw error;
+  }
+
   async updateSessionDate(sessionId: string, newDate: string) {
     const { error } = await this.supabase
       .from('sessions')

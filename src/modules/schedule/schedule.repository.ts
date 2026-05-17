@@ -70,7 +70,7 @@ export class ScheduleRepository {
 
   async getSessionsThisWeek(psychologistId: string): Promise<Date[]> {
     const now = new Date();
-    const endOfWeek = getEndOfCurrentWeek();
+    const endOfWindow = getEndOfWindow();
 
     const { data, error } = await this.supabase
       .from('sessions')
@@ -78,7 +78,7 @@ export class ScheduleRepository {
       .eq('psychologist_id', psychologistId)
       .neq('status', 'cancelled')
       .gte('session_date', now.toISOString())
-      .lte('session_date', endOfWeek.toISOString());
+      .lte('session_date', endOfWindow.toISOString());
 
     if (error) throw error;
     return (data ?? []).map(s => new Date(s.session_date));
@@ -87,7 +87,7 @@ export class ScheduleRepository {
   computeAvailableSlots(schedule: ScheduleDay[], existingSessions: Date[], sessionId: string): AvailableSlot[] {
     const now = new Date();
     const minStart = addMinutes(now, MIN_ADVANCE_MINUTES);
-    const endOfWeek = getEndOfCurrentWeek();
+    const endOfWeek = getEndOfWindow();
     const slots: AvailableSlot[] = [];
 
     const day = new Date(now);
@@ -134,13 +134,11 @@ export class ScheduleRepository {
   }
 }
 
-function getEndOfCurrentWeek(): Date {
-  const now = new Date();
-  const daysUntilSunday = now.getDay() === 0 ? 0 : 7 - now.getDay();
-  const sunday = new Date(now);
-  sunday.setDate(now.getDate() + daysUntilSunday);
-  sunday.setHours(23, 59, 59, 999);
-  return sunday;
+function getEndOfWindow(): Date {
+  const end = new Date();
+  end.setDate(end.getDate() + 7);
+  end.setHours(23, 59, 59, 999);
+  return end;
 }
 
 export function parseSlotRowId(rowId: string): { compactDate: string; sessionId: string } | null {

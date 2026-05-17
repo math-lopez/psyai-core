@@ -65,7 +65,9 @@ export class SessionActionService {
       this.schedule.getSessionsThisWeek(session.psychologist_id),
     ]);
 
+    console.log(`[reschedule email] scheduleConfig days=${scheduleConfig.length} existingSessions=${existingSessions.length}`);
     const slots = this.schedule.computeAvailableSlots(scheduleConfig, existingSessions, record.session_id);
+    console.log(`[reschedule email] slots computed=${slots.length}`);
 
     if (slots.length === 0) {
       // No slots — fall back to manual flow
@@ -125,12 +127,14 @@ export class SessionActionService {
       this.schedule.getSessionsThisWeek(session.psychologist_id),
     ]);
 
+    console.log(`[reschedule auto] scheduleConfig days=${scheduleConfig.length} existingSessions=${existingSessions.length}`);
     const slots = this.schedule.computeAvailableSlots(scheduleConfig, existingSessions, sessionId);
+    console.log(`[reschedule auto] slots computed=${slots.length}`);
 
     if (slots.length === 0) {
       await sendWhatsAppText(
         fromPhone,
-        'Não há horários disponíveis essa semana. Seu psicólogo entrará em contato para reagendar.',
+        'Não há horários disponíveis nos próximos dias. Seu psicólogo entrará em contato para reagendar.',
       ).catch(() => {});
       await this.handleManualReschedule(sessionId, session);
       return;
@@ -197,7 +201,10 @@ export class SessionActionService {
       throw Object.assign(new Error('Solicitação não encontrada ou já processada'), { statusCode: 404 });
     }
 
-    await this.sessions.updateRescheduleRequest(requestId, 'rejected');
+    await Promise.all([
+      this.sessions.updateRescheduleRequest(requestId, 'rejected'),
+      this.sessions.cancelSession(request.session_id),
+    ]);
 
     const session = await this.sessions.findSessionForAction(request.session_id);
     if (!session?.patient) return;
