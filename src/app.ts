@@ -24,6 +24,7 @@ import livekitRoutes from "./modules/livekit/livekit.routes";
 import financialRoutes from "./modules/financial/financial.routes";
 import financialPublicRoutes from "./modules/financial/financial.public.routes";
 import testRoutes from "./modules/tests/test.routes";
+import clinicRoutes from "./modules/clinic/clinic.routes";
 
 export async function buildApp() {
   const app = Fastify({
@@ -144,6 +145,7 @@ export async function buildApp() {
   await app.register(livekitRoutes);
   await app.register(financialRoutes);
   await app.register(testRoutes);
+  await app.register(clinicRoutes);
 
   app.setErrorHandler((error, request, reply) => {
     request.log.error(error);

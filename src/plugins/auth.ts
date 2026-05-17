@@ -5,6 +5,8 @@ declare module 'fastify' {
     authUser: {
       id: string;
       email?: string;
+      clinic_id?: string;
+      clinic_role?: string;
     };
     userToken: string;
   }
@@ -30,10 +32,21 @@ export default fp(async function authPlugin(app) {
       return reply.status(401).send({ message: 'Token inválido' });
     }
 
+    const userId = data.user.id;
+
+    const { data: membership } = await app.supabase
+      .from('clinic_members')
+      .select('clinic_id, role')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .maybeSingle();
+
     request.authUser = {
-  id: data.user.id,
-  email: data.user.email,
-};
-request.userToken = token;
+      id: userId,
+      email: data.user.email,
+      clinic_id: membership?.clinic_id ?? undefined,
+      clinic_role: membership?.role ?? undefined,
+    };
+    request.userToken = token;
   });
 });

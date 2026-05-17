@@ -24,16 +24,19 @@ export class PatientService {
     return patient;
   }
 
-  async create(psychologistId: string, payload: CreatePatientInput) {
-    const tier = (await this.repository.getSubscriptionTier(psychologistId)) as SubscriptionTier;
-    const safeTier = PLAN_LIMITS[tier] ? tier : 'free';
+  async create(psychologistId: string, payload: CreatePatientInput, clinicId?: string) {
+    const rawTier = clinicId
+      ? await this.repository.getClinicSubscriptionTier(clinicId)
+      : await this.repository.getSubscriptionTier(psychologistId);
+
+    const tier = (PLAN_LIMITS[rawTier as SubscriptionTier] ? rawTier : 'free') as SubscriptionTier;
 
     const currentCount = await this.repository.countByPsychologist(psychologistId);
-    const limit = PLAN_LIMITS[safeTier].maxPatients;
+    const limit = PLAN_LIMITS[tier].maxPatients;
 
     if (currentCount >= limit) {
       throw this.app.httpErrors.forbidden(
-        `Limite atingido! Seu plano ${PLAN_LIMITS[safeTier].name} permite apenas ${limit} pacientes. Faça um upgrade para continuar.`
+        `Limite atingido! O plano ${PLAN_LIMITS[tier].name} permite apenas ${limit} pacientes. Faça um upgrade para continuar.`
       );
     }
 

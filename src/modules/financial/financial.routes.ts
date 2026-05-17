@@ -7,7 +7,7 @@ const financialRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => 
   fastify.addHook("preHandler", fastify.authenticate);
 
   fastify.get("/v1/financial/asaas/status", async (request, reply) => {
-    const data = await service.getAsaasStatus(request.authUser.id);
+    const data = await service.getAsaasStatus(request.authUser.id, request.authUser.clinic_id);
     return reply.send({ data });
   });
 
@@ -16,7 +16,7 @@ const financialRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => 
     const required = ['name','email','cpfCnpj','mobilePhone','incomeValue','address','addressNumber','province','postalCode'];
     const missing = required.filter((f) => !body?.[f]);
     if (missing.length) return reply.status(400).send({ message: `Campos obrigatórios: ${missing.join(', ')}` });
-    const data = await service.connectAsaas(request.authUser.id, body);
+    const data = await service.connectAsaas(request.authUser.id, body, request.authUser.clinic_id);
     return reply.send({ data });
   });
 
@@ -58,26 +58,26 @@ const financialRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => 
       due_date:     body.due_date ?? null,
       notes:        body.notes ?? null,
       billing_type: body.billing_type ?? undefined,
-    });
+    }, request.authUser.clinic_id);
     return reply.status(201).send({ data });
   });
 
   fastify.post("/v1/financial/charges/:id/sync-asaas", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const data = await service.syncChargeWithAsaas(id, request.authUser.id);
+    const data = await service.syncChargeWithAsaas(id, request.authUser.id, request.authUser.clinic_id);
     return reply.send({ data });
   });
 
   fastify.post("/v1/financial/charges/:id/send-email", async (request, reply) => {
     const { id } = request.params as { id: string };
-    await service.sendChargeEmail(id, request.authUser.id);
+    await service.sendChargeEmail(id, request.authUser.id, request.authUser.clinic_id);
     return reply.send({ success: true });
   });
 
   fastify.patch("/v1/financial/charges/:id/status", async (request, reply) => {
     const { id } = request.params as { id: string };
     const { status } = request.body as { status: string };
-    const data = await service.updateStatus(id, request.authUser.id, status);
+    const data = await service.updateStatus(id, request.authUser.id, status, request.authUser.clinic_id);
     return reply.send({ data });
   });
 
@@ -102,6 +102,7 @@ const financialRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => 
       session_value,
       description,
       billing_type as any,
+      request.authUser.clinic_id,
     );
     return reply.status(201).send({ data });
   });
@@ -109,7 +110,7 @@ const financialRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => 
   // ── Carteira Asaas ──────────────────────────────────────────────────────────
 
   fastify.get("/v1/financial/asaas/balance", async (request, reply) => {
-    const data = await service.getWalletBalance(request.authUser.id);
+    const data = await service.getWalletBalance(request.authUser.id, request.authUser.clinic_id);
     return reply.send({ data });
   });
 
@@ -120,7 +121,7 @@ const financialRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => 
       endDate,
       limit:  limit  ? Number(limit)  : undefined,
       offset: offset ? Number(offset) : undefined,
-    });
+    }, request.authUser.clinic_id);
     return reply.send({ data });
   });
 
@@ -129,7 +130,7 @@ const financialRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => 
     const data = await service.getWalletTransfers(request.authUser.id, {
       limit:  limit  ? Number(limit)  : undefined,
       offset: offset ? Number(offset) : undefined,
-    });
+    }, request.authUser.clinic_id);
     return reply.send({ data });
   });
 
@@ -142,7 +143,7 @@ const financialRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => 
       pixAddressKey:      body.pixAddressKey,
       pixAddressKeyType:  body.pixAddressKeyType,
       description:        body.description,
-    });
+    }, request.authUser.clinic_id);
     return reply.send({ data });
   });
 };

@@ -2,7 +2,8 @@ import { FastifyInstance } from "fastify";
 import { AnalysisRepository } from "./analysis.repository";
 import { AnalysisProcessor } from "./analysis.processor";
 import { PatientAIAnalysis, RequestPatientAnalysisResult, SynthesisResult } from "./analysis.types";
-import { PLAN_LIMITS, SubscriptionTier } from "../../config/plans";
+import { PLAN_LIMITS } from "../../config/plans";
+import { resolveSubscriptionTier } from "../../utils/subscription";
 
 export class AnalysisService {
   private readonly repository: AnalysisRepository;
@@ -83,14 +84,8 @@ export class AnalysisService {
     };
   }
 
-  private async assertSynthesisQuota(psychologistId: string): Promise<void> {
-    const { data: profile } = await this.fastify.supabaseAdmin
-      .from("profiles")
-      .select("subscription_tier")
-      .eq("id", psychologistId)
-      .single();
-
-    const tier = (profile?.subscription_tier ?? "free") as SubscriptionTier;
+  private async assertSynthesisQuota(psychologistId: string, clinicId?: string): Promise<void> {
+    const tier = await resolveSubscriptionTier(this.fastify.supabase, psychologistId, clinicId);
     const limit = PLAN_LIMITS[tier]?.maxSynthesesPerMonth ?? 0;
 
     if (limit === 0) {
@@ -121,8 +116,9 @@ export class AnalysisService {
   async synthesizePatient(
     patientId: string,
     psychologistId: string,
+    clinicId?: string,
   ): Promise<SynthesisResult> {
-    await this.assertSynthesisQuota(psychologistId);
+    await this.assertSynthesisQuota(psychologistId, clinicId);
 
     const patient = await this.repository.findPatientById(patientId, psychologistId);
     if (!patient) {

@@ -1,4 +1,4 @@
-export type SubscriptionTier = 'free' | 'basic' | 'pro' | 'ultra';
+export type SubscriptionTier = 'free' | 'basic' | 'pro' | 'ultra' | 'clinic_starter' | 'clinic_pro' | 'clinic_enterprise';
 
 export interface PlanLimits {
   name: string;
@@ -56,5 +56,38 @@ export const PLAN_LIMITS: Record<SubscriptionTier, PlanLimits> = {
     maxSynthesesPerMonth: 50,
     hasTherapeuticInsights: true,
     description: 'Liberdade total e inteligência artificial avançada.',
+  },
+  clinic_starter: {
+    name: 'Clínica Starter',
+    price: 0,
+    maxPatients: Infinity,
+    maxSessionsPerMonth: Infinity,
+    maxVideoCallsPerMonth: 30,
+    maxTranscriptionsPerMonth: 30,
+    maxSynthesesPerMonth: 10,
+    hasTherapeuticInsights: true,
+    description: 'Para clínicas com até 3 psicólogos.',
+  },
+  clinic_pro: {
+    name: 'Clínica Pro',
+    price: 0,
+    maxPatients: Infinity,
+    maxSessionsPerMonth: Infinity,
+    maxVideoCallsPerMonth: Infinity,
+    maxTranscriptionsPerMonth: Infinity,
+    maxSynthesesPerMonth: 50,
+    hasTherapeuticInsights: true,
+    description: 'Para clínicas com até 10 psicólogos.',
+  },
+  clinic_enterprise: {
+    name: 'Clínica Enterprise',
+    price: 0,
+    maxPatients: Infinity,
+    maxSessionsPerMonth: Infinity,
+    maxVideoCallsPerMonth: Infinity,
+    maxTranscriptionsPerMonth: Infinity,
+    maxSynthesesPerMonth: Infinity,
+    hasTherapeuticInsights: true,
+    description: 'Para clínicas sem limite de psicólogos.',
   },
 };

@@ -39,14 +39,14 @@ export class FinancialService {
     return this.repository.upsertSettings(psychologistId, payload);
   }
 
-  async connectAsaas(psychologistId: string, input: CreateSubAccountInput): Promise<{ name: string }> {
+  async connectAsaas(psychologistId: string, input: CreateSubAccountInput, clinicId?: string): Promise<{ name: string }> {
     const subAccount = await createSubAccount(input);
-    await this.repository.saveAsaasApiKey(psychologistId, subAccount.apiKey);
+    await this.repository.saveAsaasApiKey(psychologistId, subAccount.apiKey, clinicId);
     return { name: input.name };
   }
 
-  async getAsaasStatus(psychologistId: string): Promise<{ connected: boolean; name?: string }> {
-    const apiKey = await this.repository.findAsaasApiKey(psychologistId);
+  async getAsaasStatus(psychologistId: string, clinicId?: string): Promise<{ connected: boolean; name?: string }> {
+    const apiKey = await this.repository.findAsaasApiKey(psychologistId, clinicId);
     if (!apiKey) return { connected: false };
     try {
       const account = await validateAsaasKey(apiKey);
@@ -66,8 +66,9 @@ export class FinancialService {
   async createCharge(
     psychologistId: string,
     payload: Pick<FinancialCharge, "patient_id" | "session_id" | "amount" | "description" | "due_date" | "notes"> & { billing_type?: BillingType },
+    clinicId?: string,
   ): Promise<FinancialCharge & { asaas_error?: string }> {
-    const asaasKey = await this.repository.findAsaasApiKey(psychologistId);
+    const asaasKey = await this.repository.findAsaasApiKey(psychologistId, clinicId);
     if (asaasKey && Number(payload.amount) < 5) {
       throw this.fastify.httpErrors.badRequest('O valor mínimo para cobranças via Asaas é R$ 5,00.');
     }
@@ -75,7 +76,7 @@ export class FinancialService {
     const charge = await this.repository.createCharge(psychologistId, payload);
 
     try {
-      await this.createAsaasPaymentAsync(psychologistId, charge.id, payload);
+      await this.createAsaasPaymentAsync(psychologistId, charge.id, payload, clinicId);
     } catch (err: any) {
       this.fastify.log.error({ err }, '[asaas] Falha ao criar pagamento no Asaas');
       return { ...charge, asaas_error: err?.message ?? 'Erro ao criar pagamento no Asaas' };
@@ -88,8 +89,9 @@ export class FinancialService {
     psychologistId: string,
     chargeId: string,
     payload: Pick<FinancialCharge, "patient_id" | "amount" | "description" | "due_date"> & { billing_type?: BillingType },
+    clinicId?: string,
   ) {
-    const apiKey = await this.repository.findAsaasApiKey(psychologistId);
+    const apiKey = await this.repository.findAsaasApiKey(psychologistId, clinicId);
     if (!apiKey) return;
 
     // Busca ou cria cliente no Asaas
@@ -138,6 +140,7 @@ export class FinancialService {
     id: string,
     psychologistId: string,
     status: string,
+    clinicId?: string,
   ): Promise<FinancialCharge> {
     const validStatuses = ["pending", "paid", "overdue", "cancelled"];
     if (!validStatuses.includes(status)) {
@@ -148,7 +151,7 @@ export class FinancialService {
 
     // Cancela no Asaas se houver pagamento vinculado
     if (status === 'cancelled' && charge?.asaas_payment_id) {
-      const apiKey = await this.repository.findAsaasApiKey(psychologistId);
+      const apiKey = await this.repository.findAsaasApiKey(psychologistId, clinicId);
       if (apiKey) {
         cancelAsaasPayment(apiKey, charge.asaas_payment_id).catch((err) => {
           this.fastify.log.warn({ err }, '[asaas] Falha ao cancelar pagamento no Asaas');
@@ -170,11 +173,12 @@ export class FinancialService {
     sessionValue: number,
     description: string,
     billingType?: BillingType,
+    clinicId?: string,
   ): Promise<FinancialCharge & { asaas_error?: string }> {
     if (!sessionIds.length) throw this.fastify.httpErrors.badRequest("Selecione ao menos uma sessão");
     const amount = Number((sessionValue * sessionIds.length).toFixed(2));
 
-    const asaasKey = await this.repository.findAsaasApiKey(psychologistId);
+    const asaasKey = await this.repository.findAsaasApiKey(psychologistId, clinicId);
     if (asaasKey && amount < 5) {
       throw this.fastify.httpErrors.badRequest('O valor mínimo para cobranças via Asaas é R$ 5,00.');
     }
@@ -188,7 +192,7 @@ export class FinancialService {
         description:  charge.description,
         due_date:     charge.due_date,
         billing_type: billingType,
-      });
+      }, clinicId);
     } catch (err: any) {
       this.fastify.log.error({ err }, '[asaas] Falha ao criar pagamento no Asaas via closePeriod');
       return { ...charge, asaas_error: err?.message ?? 'Erro ao criar pagamento no Asaas' };
@@ -219,7 +223,8 @@ export class FinancialService {
 
     // Fallback: busca QR PIX pelo payment_id
     if (charge.asaas_payment_id) {
-      const apiKey = await this.repository.findAsaasApiKey(charge.psychologist_id);
+      const clinicIdForCharge = await this.repository.findClinicIdForPsychologist(charge.psychologist_id);
+      const apiKey = await this.repository.findAsaasApiKey(charge.psychologist_id, clinicIdForCharge ?? undefined);
       if (apiKey) {
         try {
           const pix = await getAsaasPixQrCode(apiKey, charge.asaas_payment_id);
@@ -259,7 +264,7 @@ export class FinancialService {
     };
   }
 
-  async syncChargeWithAsaas(chargeId: string, psychologistId: string) {
+  async syncChargeWithAsaas(chargeId: string, psychologistId: string, clinicId?: string) {
     const charge = await this.repository.findChargeById(chargeId, psychologistId);
     if (!charge) throw this.fastify.httpErrors.notFound('Cobrança não encontrada');
     if (charge.asaas_payment_id) return { already_synced: true, asaas_payment_id: charge.asaas_payment_id };
@@ -269,7 +274,7 @@ export class FinancialService {
       amount:      charge.amount,
       description: charge.description,
       due_date:    charge.due_date,
-    });
+    }, clinicId);
 
     const updated = await this.repository.findChargeById(chargeId, psychologistId);
     return { asaas_payment_id: updated?.asaas_payment_id ?? null };
@@ -288,7 +293,7 @@ export class FinancialService {
     return this.repository.getSummary(psychologistId, month);
   }
 
-  async sendChargeEmail(chargeId: string, psychologistId: string): Promise<void> {
+  async sendChargeEmail(chargeId: string, psychologistId: string, clinicId?: string): Promise<void> {
     const [charge, settings] = await Promise.all([
       this.repository.findChargeById(chargeId, psychologistId),
       this.repository.findSettings(psychologistId),
@@ -312,7 +317,7 @@ export class FinancialService {
       emailParams.invoiceUrl = (charge as any).asaas_invoice_url;
     } else if (charge.asaas_payment_id) {
       // Fallback: busca QR PIX
-      const apiKey = await this.repository.findAsaasApiKey(psychologistId);
+      const apiKey = await this.repository.findAsaasApiKey(psychologistId, clinicId);
       if (apiKey) {
         try {
           const pix = await getAsaasPixQrCode(apiKey, charge.asaas_payment_id);
@@ -336,35 +341,37 @@ export class FinancialService {
 
   // ── Carteira Asaas ──────────────────────────────────────────────────────────
 
-  private async requireAsaasKey(psychologistId: string): Promise<string> {
-    const apiKey = await this.repository.findAsaasApiKey(psychologistId);
+  private async requireAsaasKey(psychologistId: string, clinicId?: string): Promise<string> {
+    const apiKey = await this.repository.findAsaasApiKey(psychologistId, clinicId);
     if (!apiKey) throw this.fastify.httpErrors.badRequest('Conta Asaas não conectada');
     return apiKey;
   }
 
-  async getWalletBalance(psychologistId: string) {
-    const apiKey = await this.requireAsaasKey(psychologistId);
+  async getWalletBalance(psychologistId: string, clinicId?: string) {
+    const apiKey = await this.requireAsaasKey(psychologistId, clinicId);
     return getAsaasBalance(apiKey);
   }
 
   async getWalletStatement(
     psychologistId: string,
     params?: { startDate?: string; endDate?: string; limit?: number; offset?: number },
+    clinicId?: string,
   ) {
-    const apiKey = await this.requireAsaasKey(psychologistId);
+    const apiKey = await this.requireAsaasKey(psychologistId, clinicId);
     return getAsaasStatement(apiKey, params);
   }
 
   async getWalletTransfers(
     psychologistId: string,
     params?: { limit?: number; offset?: number },
+    clinicId?: string,
   ) {
-    const apiKey = await this.requireAsaasKey(psychologistId);
+    const apiKey = await this.requireAsaasKey(psychologistId, clinicId);
     return getAsaasTransfers(apiKey, params);
   }
 
-  async createWalletTransfer(psychologistId: string, input: CreateTransferInput) {
-    const apiKey = await this.requireAsaasKey(psychologistId);
+  async createWalletTransfer(psychologistId: string, input: CreateTransferInput, clinicId?: string) {
+    const apiKey = await this.requireAsaasKey(psychologistId, clinicId);
     return createAsaasTransfer(apiKey, input);
   }
 }

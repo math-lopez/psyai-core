@@ -18,7 +18,7 @@ export default async function patientRoutes(app: FastifyInstance) {
     if (!parsed.success) {
       return reply.status(400).send({ message: 'Dados inválidos', errors: parsed.error.flatten() });
     }
-    const patient = await service.create(request.authUser.id, parsed.data);
+    const patient = await service.create(request.authUser.id, parsed.data, request.authUser.clinic_id);
     return reply.status(201).send(patient);
   });
 

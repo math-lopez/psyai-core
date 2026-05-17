@@ -59,6 +59,17 @@ export class PatientRepository {
     return data?.subscription_tier ?? 'free';
   }
 
+  async getClinicSubscriptionTier(clinicId: string) {
+    const { data, error } = await this.supabase
+      .from('clinics')
+      .select('subscription_tier')
+      .eq('id', clinicId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data?.subscription_tier ?? 'clinic_starter';
+  }
+
   async create(psychologistId: string, payload: CreatePatientInput) {
     const { data, error } = await this.supabase
       .from('patients')

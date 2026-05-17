@@ -22,7 +22,7 @@ export default async function sessionRoutes(app: FastifyInstance) {
   });
 
   app.post('/v1/sessions/:id/analyze-ai', { preHandler: [app.authenticate] }, async (request: any) => {
-    return service.analyzeSessionAI(request.params.id, request.authUser.id, request.userToken);
+    return service.analyzeSessionAI(request.params.id, request.authUser.id, request.userToken, request.authUser.clinic_id);
   });
 
   app.get('/v1/patients/:patientId/sessions', { preHandler: [app.authenticate] }, async (request: any) => {
@@ -43,7 +43,7 @@ export default async function sessionRoutes(app: FastifyInstance) {
       });
     }
 
-    const created = await service.createRecurrent(request.authUser.id, parsed.data);
+    const created = await service.createRecurrent(request.authUser.id, parsed.data, request.authUser.clinic_id);
     return reply.status(201).send(created);
   });
 
@@ -57,7 +57,7 @@ export default async function sessionRoutes(app: FastifyInstance) {
       });
     }
 
-    const created = await service.create(request.authUser.id, parsed.data);
+    const created = await service.create(request.authUser.id, parsed.data, request.authUser.clinic_id);
     return reply.status(201).send(created);
   });
 
@@ -79,7 +79,7 @@ export default async function sessionRoutes(app: FastifyInstance) {
   });
 
   app.post('/v1/sessions/:id/finish', { preHandler: [app.authenticate] }, async (request: any) => {
-    return service.finishSession(request.params.id, request.authUser.id, request.userToken);
+    return service.finishSession(request.params.id, request.authUser.id, request.userToken, request.authUser.clinic_id);
   });
 
   app.post('/v1/sessions/:id/process-audio', { preHandler: [app.authenticate] }, async (request: any) => {

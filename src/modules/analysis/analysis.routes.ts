@@ -94,7 +94,7 @@ const analysisRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
       const { patientId } = request.params as { patientId: string };
       const psychologistId = request.authUser.id;
 
-      const result = await analysisService.synthesizePatient(patientId, psychologistId);
+      const result = await analysisService.synthesizePatient(patientId, psychologistId, request.authUser.clinic_id);
 
       return reply.send(result);
     },

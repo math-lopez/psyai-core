@@ -4,7 +4,8 @@ import { generateToken, getRoomService } from './livekit.service';
 import { sendSessionLinkEmail } from '../../services/emailService';
 import { sendWhatsAppSessionStarted } from '../../services/twilioService';
 import { SessionRepository } from '../sessions/session.repository';
-import { PLAN_LIMITS, SubscriptionTier } from '../../config/plans';
+import { PLAN_LIMITS } from '../../config/plans';
+import { resolveSubscriptionTier } from '../../utils/subscription';
 
 function makeHttpError(statusCode: number, message: string) {
   const err = new Error(message) as Error & { statusCode?: number };
@@ -56,12 +57,11 @@ export default async function livekitRoutes(app: FastifyInstance) {
 
     // Verifica limite de videochamadas do plano
     const repo = new SessionRepository(app.supabase);
-    const tier = (await repo.getSubscriptionTier(psychologistId)) as SubscriptionTier;
-    const safeTier = PLAN_LIMITS[tier] ? tier : 'free';
+    const safeTier = await resolveSubscriptionTier(app.supabase, psychologistId, request.authUser.clinic_id);
     const videoLimit = PLAN_LIMITS[safeTier].maxVideoCallsPerMonth;
 
     if (videoLimit === 0) {
-      throw makeHttpError(403, `Videochamadas não estão disponíveis no plano ${PLAN_LIMITS[safeTier].name}. Faça um upgrade para continuar.`);
+      throw makeHttpError(403, `Videochamadas não estão disponíveis no plano ${PLAN_LIMITS[safeTier].name}.`);
     }
 
     if (videoLimit !== Infinity) {

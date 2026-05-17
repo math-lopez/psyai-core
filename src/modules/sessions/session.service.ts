@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { SessionRepository } from './session.repository';
 import { CreateSessionInput, CreateRecurrentSessionInput, UpdateSessionInput } from './session.types';
 import { PLAN_LIMITS, SubscriptionTier } from '../../config/plans';
+import { resolveSubscriptionTier } from '../../utils/subscription';
 
 function makeHttpError(statusCode: number, message: string) {
   const err = new Error(message) as Error & { statusCode?: number };
@@ -58,9 +59,8 @@ export class SessionService {
     return this.repository.getSessionAIAnalysis(sessionId);
   }
 
-  async analyzeSessionAI(sessionId: string, psychologistId: string, userToken?: string) {
-    const tier = (await this.repository.getSubscriptionTier(psychologistId)) as SubscriptionTier;
-    const safeTier = PLAN_LIMITS[tier] ? tier : 'free';
+  async analyzeSessionAI(sessionId: string, psychologistId: string, userToken?: string, clinicId?: string) {
+    const safeTier = await resolveSubscriptionTier(this.app.supabase, psychologistId, clinicId);
 
     if (!PLAN_LIMITS[safeTier].hasTherapeuticInsights) {
       throw makeHttpError(
@@ -81,7 +81,7 @@ export class SessionService {
     return data;
   }
 
-  async create(psychologistId: string, payload: CreateSessionInput) {
+  async create(psychologistId: string, payload: CreateSessionInput, clinicId?: string) {
     const patientBelongs = await this.repository.patientBelongsToPsychologist(
       payload.patient_id,
       psychologistId
@@ -91,8 +91,7 @@ export class SessionService {
       throw makeHttpError(403, 'Paciente não pertence ao psicólogo autenticado');
     }
 
-    const tier = (await this.repository.getSubscriptionTier(psychologistId)) as SubscriptionTier;
-    const safeTier = PLAN_LIMITS[tier] ? tier : 'free';
+    const safeTier = await resolveSubscriptionTier(this.app.supabase, psychologistId, clinicId);
     const limit = PLAN_LIMITS[safeTier].maxSessionsPerMonth;
 
     if (limit !== Infinity) {
@@ -132,7 +131,7 @@ export class SessionService {
     return { success: true };
   }
 
-  async createRecurrent(psychologistId: string, payload: CreateRecurrentSessionInput) {
+  async createRecurrent(psychologistId: string, payload: CreateRecurrentSessionInput, clinicId?: string) {
     const patientBelongs = await this.repository.patientBelongsToPsychologist(
       payload.patient_id,
       psychologistId
@@ -142,8 +141,7 @@ export class SessionService {
       throw makeHttpError(403, 'Paciente não pertence ao psicólogo autenticado');
     }
 
-    const tier = (await this.repository.getSubscriptionTier(psychologistId)) as SubscriptionTier;
-    const safeTier = PLAN_LIMITS[tier] ? tier : 'free';
+    const safeTier = await resolveSubscriptionTier(this.app.supabase, psychologistId, clinicId);
     const limit = PLAN_LIMITS[safeTier].maxSessionsPerMonth;
 
     const { until_date, session_date, ...baseFields } = payload;
@@ -232,7 +230,7 @@ export class SessionService {
     return { success: true };
   }
 
-  async finishSession(id: string, psychologistId: string, userToken: string) {
+  async finishSession(id: string, psychologistId: string, userToken: string, clinicId?: string) {
     const session = await this.repository.findRawByIdAndPsychologist(id, psychologistId);
 
     if (!session) {
@@ -244,22 +242,21 @@ export class SessionService {
         ? 'queued'
         : 'completed';
 
-    const [, tier] = await Promise.all([
+    const [, safeTier] = await Promise.all([
       this.repository.update(id, psychologistId, {
         status: 'completed',
         processing_status: nextStatus,
       }),
-      this.repository.getSubscriptionTier(psychologistId),
+      resolveSubscriptionTier(this.app.supabase, psychologistId, clinicId),
     ]);
 
     if (nextStatus === 'queued') {
       await this.processAudio(id, psychologistId, userToken);
     }
 
-    // Dispara análise de insights apenas para planos pro/ultra
-    const safeTier = PLAN_LIMITS[tier as SubscriptionTier] ? (tier as SubscriptionTier) : 'free';
+    // Dispara análise de insights apenas para planos com suporte
     if (PLAN_LIMITS[safeTier].hasTherapeuticInsights) {
-      this.analyzeSessionAI(id, psychologistId, userToken).catch((err) => {
+      this.analyzeSessionAI(id, psychologistId, userToken, clinicId).catch((err) => {
         this.app.log.error({ err }, '[insights] Falha ao disparar análise automática da sessão');
       });
     }

@@ -57,7 +57,16 @@ export class FinancialRepository {
     return data as { id: string; amount: number; description: string | null; due_date: string | null; status: string; psychologist_id: string; asaas_payment_id: string | null; asaas_invoice_url: string | null } | null;
   }
 
-  async findAsaasApiKey(psychologistId: string): Promise<string | null> {
+  async findAsaasApiKey(psychologistId: string, clinicId?: string): Promise<string | null> {
+    if (clinicId) {
+      const { data } = await this.supabase
+        .from('clinics')
+        .select('asaas_api_key')
+        .eq('id', clinicId)
+        .maybeSingle();
+      return data?.asaas_api_key ?? null;
+    }
+
     const { data, error } = await this.supabase
       .from('profiles')
       .select('asaas_api_key')
@@ -67,12 +76,30 @@ export class FinancialRepository {
     return data?.asaas_api_key ?? null;
   }
 
-  async saveAsaasApiKey(psychologistId: string, apiKey: string): Promise<void> {
+  async saveAsaasApiKey(psychologistId: string, apiKey: string, clinicId?: string): Promise<void> {
+    if (clinicId) {
+      const { error } = await this.supabase
+        .from('clinics')
+        .update({ asaas_api_key: apiKey })
+        .eq('id', clinicId);
+      if (error) throw error;
+      return;
+    }
     const { error } = await this.supabase
       .from('profiles')
       .update({ asaas_api_key: apiKey })
       .eq('id', psychologistId);
     if (error) throw error;
+  }
+
+  async findClinicIdForPsychologist(psychologistId: string): Promise<string | null> {
+    const { data } = await this.supabase
+      .from('clinic_members')
+      .select('clinic_id')
+      .eq('user_id', psychologistId)
+      .eq('status', 'active')
+      .maybeSingle();
+    return data?.clinic_id ?? null;
   }
 
   async findPatientAsaasCustomerId(patientId: string): Promise<string | null> {

@@ -91,32 +91,36 @@ create policy "clinic owner manages members"
     )
   );
 
--- Admin membro (role=admin) também gerencia membros
+-- Admin membro (role=admin) também gerencia membros (usa função helper para evitar recursão)
 create policy "clinic admin member manages members"
   on public.clinic_members for all
-  using (
-    exists (
-      select 1 from public.clinic_members cm
-      where cm.clinic_id = clinic_id
-        and cm.user_id = auth.uid()
-        and cm.role = 'admin'
-        and cm.status = 'active'
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.clinic_members cm
-      where cm.clinic_id = clinic_id
-        and cm.user_id = auth.uid()
-        and cm.role = 'admin'
-        and cm.status = 'active'
-    )
-  );
+  using (public.is_clinic_admin_of(clinic_id))
+  with check (public.is_clinic_admin_of(clinic_id));
 
 -- Cada membro vê o próprio registro
 create policy "member reads own record"
   on public.clinic_members for select
   using (user_id = auth.uid());
+
+-- ============================================================
+-- Função helper: verifica se o usuário logado é admin de uma clínica.
+-- SECURITY DEFINER para evitar recursão infinita nas policies.
+-- ============================================================
+
+create or replace function public.is_clinic_admin_of(p_clinic_id uuid)
+returns boolean
+language sql
+stable
+security definer
+as $$
+  select exists (
+    select 1 from public.clinic_members
+    where clinic_id = p_clinic_id
+      and user_id = auth.uid()
+      and role = 'admin'
+      and status = 'active'
+  );
+$$;
 
 -- ============================================================
 -- Função helper: retorna o clinic_id do usuário logado
