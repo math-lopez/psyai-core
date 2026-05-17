@@ -393,14 +393,24 @@ export class SessionRepository {
       .from('sessions')
       .select(`
         id, session_date, psychologist_id, patient_id, patient_status, status,
-        patient:patients(full_name, email, phone),
-        psychologist:profiles!sessions_psychologist_id_fkey(full_name, phone, whatsapp_reminder_enabled)
+        patient:patients(full_name, email, phone)
       `)
       .eq('id', sessionId)
       .maybeSingle();
 
     if (error) throw error;
-    return data as {
+    if (!data) return null;
+
+    const { data: psychologist } = await this.supabase
+      .from('profiles')
+      .select('full_name, phone, whatsapp_reminder_enabled')
+      .eq('id', data.psychologist_id)
+      .maybeSingle();
+
+    return {
+      ...data,
+      psychologist: psychologist as { full_name: string; phone: string | null; whatsapp_reminder_enabled: boolean } | null,
+    } as {
       id: string;
       session_date: string;
       psychologist_id: string;
@@ -409,7 +419,7 @@ export class SessionRepository {
       status: string;
       patient: { full_name: string; email: string; phone: string | null } | null;
       psychologist: { full_name: string; phone: string | null; whatsapp_reminder_enabled: boolean } | null;
-    } | null;
+    };
   }
 
   async updatePatientStatus(sessionId: string, status: string) {
