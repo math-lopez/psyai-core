@@ -211,8 +211,6 @@ const sessionActionRoutes: FastifyPluginAsync = async (fastify: FastifyInstance)
 
   // ── WhatsApp: recebe mensagens do paciente ───────────────────────────────
   fastify.post('/v1/public/whatsapp/webhook', async (request, reply) => {
-    reply.status(200).send({ received: true });
-
     try {
       const body = request.body as any;
       const message = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
@@ -224,34 +222,34 @@ const sessionActionRoutes: FastifyPluginAsync = async (fastify: FastifyInstance)
         raw:         body?.entry?.[0]?.changes?.[0]?.value,
       }, '[whatsapp webhook] payload recebido');
 
-      if (!message) return;
+      if (message) {
+        const fromPhone: string = message.from;
 
-      const fromPhone: string = message.from;
-
-      // Botões de template quick reply chegam como type: "button"
-      if (message.type === 'button') {
-        const payload: string = message.button?.payload;
-        if (payload) await svc().processWhatsAppButtonReply(payload, fromPhone);
-        return;
-      }
-
-      // Mensagens interativas (list reply do seletor de slots)
-      if (message.type === 'interactive') {
-        const interactive = message.interactive;
-
-        if (interactive.type === 'button_reply') {
-          const payload: string = interactive.button_reply?.id;
+        // Botões de template quick reply chegam como type: "button"
+        if (message.type === 'button') {
+          const payload: string = message.button?.payload;
           if (payload) await svc().processWhatsAppButtonReply(payload, fromPhone);
 
-        } else if (interactive.type === 'list_reply') {
-          const rowId: string = interactive.list_reply?.id;
-          if (rowId) await svc().processWhatsAppSlotSelection(rowId, fromPhone);
+        // Mensagens interativas (list reply do seletor de slots)
+        } else if (message.type === 'interactive') {
+          const interactive = message.interactive;
+
+          if (interactive.type === 'button_reply') {
+            const payload: string = interactive.button_reply?.id;
+            if (payload) await svc().processWhatsAppButtonReply(payload, fromPhone);
+
+          } else if (interactive.type === 'list_reply') {
+            const rowId: string = interactive.list_reply?.id;
+            if (rowId) await svc().processWhatsAppSlotSelection(rowId, fromPhone);
+          }
         }
       }
 
     } catch (err) {
       fastify.log.error({ err }, '[whatsapp webhook] Erro ao processar mensagem');
     }
+
+    return reply.status(200).send({ received: true });
   });
 };
 
