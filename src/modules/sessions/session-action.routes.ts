@@ -224,18 +224,29 @@ const sessionActionRoutes: FastifyPluginAsync = async (fastify: FastifyInstance)
         raw:         body?.entry?.[0]?.changes?.[0]?.value,
       }, '[whatsapp webhook] payload recebido');
 
-      if (!message || message.type !== 'interactive') return;
+      if (!message) return;
 
       const fromPhone: string = message.from;
-      const interactive = message.interactive;
 
-      if (interactive.type === 'button_reply') {
-        const payload: string = interactive.button_reply?.id;
+      // Botões de template quick reply chegam como type: "button"
+      if (message.type === 'button') {
+        const payload: string = message.button?.payload;
         if (payload) await svc().processWhatsAppButtonReply(payload, fromPhone);
+        return;
+      }
 
-      } else if (interactive.type === 'list_reply') {
-        const rowId: string = interactive.list_reply?.id;
-        if (rowId) await svc().processWhatsAppSlotSelection(rowId, fromPhone);
+      // Mensagens interativas (list reply do seletor de slots)
+      if (message.type === 'interactive') {
+        const interactive = message.interactive;
+
+        if (interactive.type === 'button_reply') {
+          const payload: string = interactive.button_reply?.id;
+          if (payload) await svc().processWhatsAppButtonReply(payload, fromPhone);
+
+        } else if (interactive.type === 'list_reply') {
+          const rowId: string = interactive.list_reply?.id;
+          if (rowId) await svc().processWhatsAppSlotSelection(rowId, fromPhone);
+        }
       }
 
     } catch (err) {
