@@ -298,6 +298,73 @@ export async function sendPatientRescheduleRejectedEmail(params: {
   console.log(`[email] Recusa de reagendamento enviada para ${params.patientEmail}`);
 }
 
+export async function sendPendingFinancialReminderEmail(params: {
+  psychologistName: string;
+  psychologistEmail: string;
+  monthLabel: string;
+  patients: Array<{ name: string; sessionCount: number }>;
+}) {
+  const FROM = process.env.RESEND_FROM_EMAIL || 'noreply@psiai.com.br';
+  const total = params.patients.reduce((sum, p) => sum + p.sessionCount, 0);
+
+  const rows = params.patients.map(p => `
+    <tr>
+      <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:14px;color:#0f172a;">${p.name}</td>
+      <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:14px;color:#475569;text-align:right;">${p.sessionCount} sessão(ões)</td>
+    </tr>`).join('');
+
+  const html = emailWrapper(`
+    <tr>
+      <td style="padding:40px 40px 32px;">
+        <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:1px;">Financeiro pendente</p>
+        <h1 style="margin:0 0 16px;font-size:24px;font-weight:900;color:#0f172a;">Olá, ${params.psychologistName}!</h1>
+        <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.6;">
+          Você tem <strong style="color:#0f172a;">${total} sessão(ões)</strong> de <strong style="color:#0f172a;">${params.monthLabel}</strong> concluídas sem cobrança vinculada.
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <th style="text-align:left;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;padding-bottom:8px;">Paciente</th>
+            <th style="text-align:right;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;padding-bottom:8px;">Sessões</th>
+          </tr>
+          ${rows}
+        </table>
+        <div style="margin-top:28px;text-align:center;">
+          <a href="${process.env.FRONTEND_URL || 'https://app.psiai.com.br'}/financeiro" style="display:inline-block;background:#f59e0b;color:#ffffff;font-weight:700;font-size:14px;text-decoration:none;padding:14px 28px;border-radius:12px;">
+            Acessar Financeiro
+          </a>
+        </div>
+      </td>
+    </tr>`);
+
+  await sendEmail({ from: `PsiAI <${FROM}>`, to: params.psychologistEmail, subject: `Sessões sem cobrança — ${params.monthLabel}`, html });
+  console.log(`[email] Lembrete financeiro mensal enviado para ${params.psychologistEmail}`);
+}
+
+export async function sendSessionCancelledEmail(params: {
+  patientName: string;
+  patientEmail: string;
+  psychologistName: string;
+  sessionDate: string;
+}) {
+  const FROM = process.env.RESEND_FROM_EMAIL || 'noreply@psiai.com.br';
+  const date = new Date(params.sessionDate);
+  const formattedDate = format(date, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+
+  const html = emailWrapper(`
+    <tr>
+      <td style="padding:40px 40px 32px;">
+        <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:1px;">Sessão cancelada</p>
+        <h1 style="margin:0 0 16px;font-size:24px;font-weight:900;color:#0f172a;">Olá, ${params.patientName}.</h1>
+        <p style="margin:0;font-size:15px;color:#475569;line-height:1.6;">
+          Sua sessão com <strong style="color:#0f172a;">${params.psychologistName}</strong> agendada para <strong style="color:#0f172a;">${formattedDate}</strong> foi cancelada. Entre em contato para reagendar.
+        </p>
+      </td>
+    </tr>`);
+
+  await sendEmail({ from: `${params.psychologistName} via PsiAI <${FROM}>`, to: params.patientEmail, subject: `Sessão cancelada — ${formattedDate}`, html });
+  console.log(`[email] Cancelamento de sessão enviado para ${params.patientEmail}`);
+}
+
 export async function sendTestApplicationEmail(params: {
   patientName: string;
   patientEmail: string;

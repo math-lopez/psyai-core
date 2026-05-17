@@ -270,6 +270,27 @@ export async function sendWhatsAppRescheduleSlots(
   console.log(`[whatsapp] Lista de slots enviada para ${toPhone}`);
 }
 
+// psiai_sessao_cancelada — Body: Olá, {{1}}! Sua sessão com {{2}} em {{3}} às {{4}} foi cancelada. Entre em contato para reagendar.
+export async function sendWhatsAppSessionCancelled(params: {
+  patientName: string;
+  patientPhone: string;
+  psychologistName: string;
+  sessionDate: string;
+}): Promise<void> {
+  const toPhone = normalizeBrazilianPhone(params.patientPhone);
+  if (!toPhone) throw new Error(`Número inválido: ${params.patientPhone}`);
+
+  const date = new Date(params.sessionDate);
+  const formattedDate = format(date, "EEEE, dd 'de' MMMM", { locale: ptBR });
+  const formattedTime = format(date, 'HH:mm');
+
+  await sendTemplate(toPhone, 'psiai_sessao_cancelada', [
+    params.patientName, params.psychologistName, formattedDate, formattedTime,
+  ]);
+
+  console.log(`[whatsapp] Cancelamento de sessão enviado para ${toPhone}`);
+}
+
 export async function sendWhatsAppSessionStarted(params: {
   patientName: string;
   patientPhone: string;

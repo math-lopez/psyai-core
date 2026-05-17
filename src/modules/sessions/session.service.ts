@@ -2,6 +2,8 @@ import { FastifyInstance } from 'fastify';
 import { SessionRepository } from './session.repository';
 import { CreateSessionInput, CreateRecurrentSessionInput, UpdateSessionInput } from './session.types';
 import { PLAN_LIMITS, SubscriptionTier } from '../../config/plans';
+import { sendSessionCancelledEmail } from '../../services/emailService';
+import { sendWhatsAppSessionCancelled } from '../../services/whatsappService';
 
 function makeHttpError(statusCode: number, message: string) {
   const err = new Error(message) as Error & { statusCode?: number };
@@ -128,7 +130,27 @@ export class SessionService {
     if (!existing) {
       throw makeHttpError(404, 'Sessão não encontrada');
     }
+
     await this.repository.update(id, psychologistId, { status: 'cancelled', processing_status: 'cancelled' as any });
+
+    const [patient, psychologistName] = await Promise.all([
+      this.repository.findPatientById(existing.patient_id),
+      this.repository.findPsychologistNameById(psychologistId),
+    ]);
+
+    if (patient && psychologistName) {
+      const notifParams = {
+        patientName: patient.full_name,
+        psychologistName,
+        sessionDate: existing.session_date,
+      };
+
+      await Promise.allSettled([
+        patient.email ? sendSessionCancelledEmail({ ...notifParams, patientEmail: patient.email }) : Promise.resolve(),
+        patient.phone ? sendWhatsAppSessionCancelled({ ...notifParams, patientPhone: patient.phone }) : Promise.resolve(),
+      ]);
+    }
+
     return { success: true };
   }
 
