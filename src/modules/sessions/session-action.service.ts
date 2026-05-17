@@ -98,6 +98,8 @@ export class SessionActionService {
     const action = payload.slice(0, underscoreIdx);
     const sessionId = payload.slice(underscoreIdx + 1);
 
+    console.log(`[whatsapp action] action=${action} sessionId=${sessionId} from=${fromPhone}`);
+
     if (!['confirm', 'absent', 'reschedule'].includes(action)) return;
 
     if (action !== 'reschedule') {
@@ -221,6 +223,7 @@ export class SessionActionService {
 
   private async processConfirmOrAbsent(sessionId: string, action: string): Promise<void> {
     const session = await this.sessions.findSessionForAction(sessionId);
+    console.log(`[whatsapp action] session=${session?.id ?? 'NOT FOUND'} patient=${session?.patient?.full_name ?? 'NO PATIENT'} status=${session?.patient_status}`);
     if (!session?.patient) return;
     if (session.patient_status && session.patient_status !== 'pending') return;
 
