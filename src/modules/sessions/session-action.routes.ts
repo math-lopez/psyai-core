@@ -192,7 +192,16 @@ const sessionActionRoutes: FastifyPluginAsync = async (fastify: FastifyInstance)
     reply.status(200).send({ received: true });
 
     try {
-      const message = (request.body as any)?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+      const body = request.body as any;
+      const message = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+
+      fastify.log.info({
+        type:        message?.type ?? 'status_update',
+        from:        message?.from,
+        interactive: message?.interactive,
+        raw:         body?.entry?.[0]?.changes?.[0]?.value,
+      }, '[whatsapp webhook] payload recebido');
+
       if (!message || message.type !== 'interactive') return;
 
       const fromPhone: string = message.from;
