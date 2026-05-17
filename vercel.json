@@ -7,6 +7,10 @@
     {
       "path": "/v1/internal/run-transfers",
       "schedule": "6 21 * * *"
+    },
+    {
+      "path": "/v1/internal/run-reminders",
+      "schedule": "0 * * * *"
     }
   ],
   "rewrites": [

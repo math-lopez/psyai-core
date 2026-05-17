@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { SessionActionService } from './session-action.service';
 import { ScheduleRepository } from '../schedule/schedule.repository';
+import { ReminderService } from '../../services/reminderService';
 
 const ACTION_LABELS: Record<string, string> = {
   confirm:    'Presença confirmada',
@@ -176,6 +177,27 @@ const sessionActionRoutes: FastifyPluginAsync = async (fastify: FastifyInstance)
 
     const slots = repo.computeAvailableSlots(scheduleConfig, existing, record.session_id);
     return { slots };
+  });
+
+  // ── Vercel Cron: dispara lembretes de sessão ─────────────────────────────
+  fastify.get('/v1/internal/run-reminders', async (request, reply) => {
+    const auth = request.headers['authorization'];
+    const expected = `Bearer ${process.env.CRON_SECRET}`;
+    if (!process.env.CRON_SECRET || auth !== expected) {
+      return reply.status(401).send({ message: 'Não autorizado' });
+    }
+
+    fastify.log.info('[reminder] Iniciando job de lembrete via Vercel Cron');
+
+    try {
+      const reminder = new ReminderService(fastify.supabase, fastify.log);
+      await reminder.sendReminders();
+      fastify.log.info('[reminder] Job de lembrete via Vercel Cron finalizado');
+      return reply.send({ ok: true });
+    } catch (err) {
+      fastify.log.error({ err }, '[reminder] Erro no job de lembrete via cron');
+      return reply.status(500).send({ message: 'Erro ao processar lembretes' });
+    }
   });
 
   // ── WhatsApp: verificação do hub challenge ───────────────────────────────
