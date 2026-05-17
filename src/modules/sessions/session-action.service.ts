@@ -258,11 +258,14 @@ export class SessionActionService {
     const waEnabled = session.psychologist?.whatsapp_reminder_enabled ?? false;
     const psychEmail = await this.getPsychologistEmail(session.psychologist_id);
 
-    await Promise.allSettled([
+    console.log(`[handleManualReschedule] waEnabled=${waEnabled} phone=${session.patient?.phone} psychologist=${JSON.stringify(session.psychologist)}`);
+
+    const results = await Promise.allSettled([
       session.patient.email ? sendPatientRescheduleRequestedEmail({ patientName: session.patient.full_name, patientEmail: session.patient.email, psychologistName: psychName }) : Promise.resolve(),
       waEnabled && session.patient.phone ? sendWhatsAppPatientRescheduleRequested({ patientName: session.patient.full_name, patientPhone: session.patient.phone, psychologistName: psychName }) : Promise.resolve(),
       psychEmail ? sendPsychologistRescheduleNotificationEmail({ psychologistName: psychName, psychologistEmail: psychEmail, patientName: session.patient.full_name, sessionDate: session.session_date }) : Promise.resolve(),
     ]);
+    results.forEach((r, i) => { if (r.status === 'rejected') console.error(`[handleManualReschedule] falha na ação ${i}:`, r.reason); });
   }
 
   private async createRescheduleRequestWithDate(sessionId: string, proposedDate: string): Promise<void> {

@@ -227,8 +227,8 @@ export async function sendPsychologistRescheduleNotificationEmail(params: {
         <table width="100%" cellpadding="0" cellspacing="0">
           <tr>
             <td align="center">
-              <a href="${FRONTEND_URL}/sessoes" style="display:inline-block;background:#4f46e5;color:#ffffff;font-weight:700;font-size:15px;text-decoration:none;padding:16px 40px;border-radius:12px;">
-                Gerenciar na plataforma →
+              <a href="${FRONTEND_URL}/agenda" style="display:inline-block;background:#4f46e5;color:#ffffff;font-weight:700;font-size:15px;text-decoration:none;padding:16px 40px;border-radius:12px;">
+                Ver na agenda →
               </a>
             </td>
           </tr>

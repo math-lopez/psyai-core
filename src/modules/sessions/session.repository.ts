@@ -401,11 +401,13 @@ export class SessionRepository {
     if (error) throw error;
     if (!data) return null;
 
-    const { data: psychologist } = await this.supabase
+    const { data: psychologist, error: psychError } = await this.supabase
       .from('profiles')
       .select('full_name, phone, whatsapp_reminder_enabled')
       .eq('id', data.psychologist_id)
       .maybeSingle();
+
+    if (psychError) console.error('[findSessionForAction] erro ao buscar psicólogo:', psychError.message);
 
     return {
       ...data,
