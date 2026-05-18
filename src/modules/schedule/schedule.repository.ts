@@ -36,19 +36,31 @@ export class ScheduleRepository {
   }
 
   async setSchedule(psychologistId: string, days: ScheduleDay[]): Promise<void> {
+    if (days.length === 0) {
+      const { error } = await this.supabase
+        .from('psychologist_schedule')
+        .delete()
+        .eq('psychologist_id', psychologistId);
+      if (error) throw error;
+      return;
+    }
+
+    // Upsert primeiro — se falhar, agenda antiga permanece intacta
+    const { error: upsertErr } = await this.supabase
+      .from('psychologist_schedule')
+      .upsert(
+        days.map(d => ({ ...d, psychologist_id: psychologistId })),
+        { onConflict: 'psychologist_id,day_of_week' },
+      );
+    if (upsertErr) throw upsertErr;
+
+    // Só então remove os dias que não estão mais na nova lista
     const { error: delErr } = await this.supabase
       .from('psychologist_schedule')
       .delete()
-      .eq('psychologist_id', psychologistId);
-
+      .eq('psychologist_id', psychologistId)
+      .not('day_of_week', 'in', `(${days.map(d => d.day_of_week).join(',')})`);
     if (delErr) throw delErr;
-    if (days.length === 0) return;
-
-    const { error: insErr } = await this.supabase
-      .from('psychologist_schedule')
-      .insert(days.map(d => ({ ...d, psychologist_id: psychologistId })));
-
-    if (insErr) throw insErr;
   }
 
   async getRescheduleMode(psychologistId: string): Promise<'manual' | 'automatic'> {

@@ -153,18 +153,16 @@ export class AccessService {
 
     if (authError) {
       if (authError.message?.includes("already been registered")) {
-        // Paciente já tem conta — busca o user_id existente e vincula ao novo acesso
-        const { data: users } =
-          await this.fastify.supabaseAdmin.auth.admin.listUsers();
-        const existing = users?.users?.find((u) => u.email === input.email);
+        // Paciente já tem conta — busca o user_id via patient_access (sem depender de listUsers paginado)
+        const anyActive = await this.repository.findAnyActiveByPatientEmail(record.patient_id);
 
-        if (!existing) {
+        if (!anyActive?.user_id) {
           throw this.fastify.httpErrors.internalServerError(
             "Erro ao localizar conta existente.",
           );
         }
 
-        userId = existing.id;
+        userId = anyActive.user_id;
       } else {
         throw this.fastify.httpErrors.internalServerError(
           "Erro ao criar a conta. Tente novamente.",
