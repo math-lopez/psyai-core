@@ -118,7 +118,7 @@ export class ScheduleRepository {
 
             if (!hasConflict) {
               const label = format(slotStart, "EEE, dd/MM 'às' HH:mm", { locale: ptBR });
-              const compact = format(slotStart, 'yyyyMMddTHHmm');
+              const compact = format(slotStart, "yyyyMMdd'T'HHmm");
               slots.push({ datetime: slotStart.toISOString(), label, id: `slot_${compact}_${sessionId}` });
             }
           }
