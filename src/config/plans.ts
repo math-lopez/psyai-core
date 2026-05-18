@@ -43,8 +43,8 @@ export const PLAN_LIMITS: Record<SubscriptionTier, PlanLimits> = {
   },
   pro: {
     name: 'Profissional',
-    price: 79,
-    priceYearly: 67,
+    price: 99,
+    priceYearly: 84,
     maxPatients: Infinity,
     maxSessionsPerMonth: Infinity,
     maxVideoCallsPerMonth: Infinity,

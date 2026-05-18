@@ -1,5 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { SessionRepository } from '../modules/sessions/session.repository';
+import { PLAN_LIMITS, SubscriptionTier } from '../config/plans';
 import { sendSessionReminderEmail } from './emailService';
 import { sendWhatsAppReminder } from './whatsappService';
 
@@ -54,7 +55,10 @@ export class ReminderService {
           actionUrls,
         });
 
-        if (psychSettings.whatsapp_reminder_enabled && patient.phone) {
+        const tier = (await this.repository.getSubscriptionTier(psychologistId)) as SubscriptionTier;
+        const planAllowsWhatsApp = PLAN_LIMITS[tier]?.hasWhatsAppReminders ?? false;
+
+        if (planAllowsWhatsApp && psychSettings.whatsapp_reminder_enabled && patient.phone) {
           await sendWhatsAppReminder({
             patientName: patient.full_name,
             patientPhone: patient.phone,
@@ -118,7 +122,10 @@ export class ReminderService {
           actionUrls,
         });
 
-        if (psychSettings?.whatsapp_reminder_enabled && patient.phone) {
+        const tier = (await this.repository.getSubscriptionTier(session.psychologist_id)) as SubscriptionTier;
+        const planAllowsWhatsApp = PLAN_LIMITS[tier]?.hasWhatsAppReminders ?? false;
+
+        if (planAllowsWhatsApp && psychSettings?.whatsapp_reminder_enabled && patient.phone) {
           try {
             await sendWhatsAppReminder({
               patientName: patient.full_name,
