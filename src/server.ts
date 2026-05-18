@@ -3,6 +3,7 @@ import { buildApp } from "./app";
 import { env } from "./plugins/env";
 import { ReminderService } from "./services/reminderService";
 import { FinancialReminderService } from "./services/financialReminderService";
+import { SessionStartingSoonService } from "./services/sessionStartingSoonService";
 
 async function bootstrap() {
   const app = await buildApp();
@@ -37,6 +38,17 @@ async function bootstrap() {
       }, { timezone: 'America/Sao_Paulo' });
 
       app.log.info('[cron] Job de lembrete financeiro mensal registrado');
+
+      const sessionSoon = new SessionStartingSoonService(app.supabase, app.log);
+
+      // Sessão em breve: roda a cada 10 minutos
+      cron.schedule('*/10 * * * *', () => {
+        sessionSoon.sendUpcomingNotifications().catch((err) => {
+          app.log.error({ err }, '[cron] Falha no job de sessão em breve');
+        });
+      }, { timezone: 'America/Sao_Paulo' });
+
+      app.log.info('[cron] Job de sessão em breve registrado');
     }
     
   } catch (error) {

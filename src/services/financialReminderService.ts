@@ -2,6 +2,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { sendPendingFinancialReminderEmail } from './emailService';
+import { NotificationService } from './notificationService';
 
 type Log = {
   info: (msg: string) => void;
@@ -10,10 +11,14 @@ type Log = {
 };
 
 export class FinancialReminderService {
+  private readonly notifications: NotificationService;
+
   constructor(
     private readonly supabase: SupabaseClient,
     private readonly log: Log,
-  ) {}
+  ) {
+    this.notifications = new NotificationService(supabase);
+  }
 
   async sendMonthlyReminders() {
     const now = new Date();
@@ -69,12 +74,17 @@ export class FinancialReminderService {
         const psychologistName = profile?.full_name ?? 'Psicólogo(a)';
         const patients = Array.from(patientsMap.entries()).map(([name, sessionCount]) => ({ name, sessionCount }));
 
-        await sendPendingFinancialReminderEmail({
-          psychologistName,
-          psychologistEmail: user.email,
-          monthLabel,
-          patients,
-        });
+        const totalSessions = patients.reduce((sum, p) => sum + p.sessionCount, 0);
+
+        await Promise.allSettled([
+          sendPendingFinancialReminderEmail({
+            psychologistName,
+            psychologistEmail: user.email,
+            monthLabel,
+            patients,
+          }),
+          this.notifications.financialReminder(psychologistId, totalSessions, monthLabel),
+        ]);
 
         this.log.info(`[financial-reminder] Email enviado para ${user.email} — ${patients.length} paciente(s)`);
       } catch (err) {
