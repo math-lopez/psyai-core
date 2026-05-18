@@ -31,36 +31,39 @@ export class NotificationService {
     }
   }
 
-  async sessionConfirmed(psychologistId: string, patientName: string, sessionDate: string): Promise<void> {
+  async sessionConfirmed(psychologistId: string, sessionId: string, patientName: string, sessionDate: string): Promise<void> {
     await this.create({
       psychologist_id: psychologistId,
       type: 'success',
       event_type: 'session_confirmed',
       title: 'Sessão confirmada',
       message: `${patientName} confirmou presença na sessão de ${formatDate(sessionDate)}.`,
-      href: '/agenda',
+      href: `/sessoes/${sessionId}`,
+      metadata: { session_id: sessionId },
     });
   }
 
-  async sessionAbsent(psychologistId: string, patientName: string, sessionDate: string): Promise<void> {
+  async sessionAbsent(psychologistId: string, sessionId: string, patientName: string, sessionDate: string): Promise<void> {
     await this.create({
       psychologist_id: psychologistId,
       type: 'warning',
       event_type: 'session_absent',
       title: 'Ausência registrada',
       message: `${patientName} informou que não poderá comparecer à sessão de ${formatDate(sessionDate)}.`,
-      href: '/agenda',
+      href: `/sessoes/${sessionId}`,
+      metadata: { session_id: sessionId },
     });
   }
 
-  async rescheduleRequested(psychologistId: string, patientName: string, sessionDate: string): Promise<void> {
+  async rescheduleRequested(psychologistId: string, sessionId: string, patientName: string, sessionDate: string): Promise<void> {
     await this.create({
       psychologist_id: psychologistId,
       type: 'info',
       event_type: 'reschedule_requested',
       title: 'Pedido de reagendamento',
       message: `${patientName} solicitou o reagendamento da sessão de ${formatDate(sessionDate)}.`,
-      href: '/sessoes',
+      href: `/sessoes/${sessionId}`,
+      metadata: { session_id: sessionId },
     });
   }
 
@@ -83,7 +86,7 @@ export class NotificationService {
       event_type: 'session_starting_soon',
       title: 'Sessão em breve',
       message: `Sua sessão com ${patientName} começa às ${formatTime(sessionDate)}.`,
-      href: '/agenda',
+      href: `/sessoes/${sessionId}`,
       metadata: { session_id: sessionId },
     });
   }

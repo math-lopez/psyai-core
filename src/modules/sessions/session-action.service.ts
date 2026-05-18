@@ -248,7 +248,7 @@ export class SessionActionService {
       await Promise.allSettled([
         session.patient.email ? sendPatientConfirmedEmail({ patientName: session.patient.full_name, patientEmail: session.patient.email, psychologistName: psychName, sessionDate: session.session_date }) : Promise.resolve(),
         waEnabled && session.patient.phone ? sendWhatsAppPatientConfirmed({ patientName: session.patient.full_name, patientPhone: session.patient.phone, psychologistName: psychName, sessionDate: session.session_date }) : Promise.resolve(),
-        this.notifications.sessionConfirmed(session.psychologist_id, session.patient.full_name, session.session_date),
+        this.notifications.sessionConfirmed(session.psychologist_id, sessionId, session.patient.full_name, session.session_date),
       ]);
     } else {
       await this.sessions.updatePatientStatus(sessionId, 'absent');
@@ -256,7 +256,7 @@ export class SessionActionService {
         session.patient.email ? sendPatientAbsentEmail({ patientName: session.patient.full_name, patientEmail: session.patient.email, psychologistName: psychName }) : Promise.resolve(),
         waEnabled && session.patient.phone ? sendWhatsAppPatientAbsent({ patientName: session.patient.full_name, patientPhone: session.patient.phone, psychologistName: psychName }) : Promise.resolve(),
         psychEmail ? sendPsychologistAbsenceNotificationEmail({ psychologistName: psychName, psychologistEmail: psychEmail, patientName: session.patient.full_name, sessionDate: session.session_date }) : Promise.resolve(),
-        this.notifications.sessionAbsent(session.psychologist_id, session.patient.full_name, session.session_date),
+        this.notifications.sessionAbsent(session.psychologist_id, sessionId, session.patient.full_name, session.session_date),
       ]);
     }
   }
@@ -278,7 +278,7 @@ export class SessionActionService {
       session.patient.email ? sendPatientRescheduleRequestedEmail({ patientName: session.patient.full_name, patientEmail: session.patient.email, psychologistName: psychName }) : Promise.resolve(),
       waEnabled && session.patient.phone ? sendWhatsAppPatientRescheduleRequested({ patientName: session.patient.full_name, patientPhone: session.patient.phone, psychologistName: psychName }) : Promise.resolve(),
       psychEmail ? sendPsychologistRescheduleNotificationEmail({ psychologistName: psychName, psychologistEmail: psychEmail, patientName: session.patient.full_name, sessionDate: session.session_date }) : Promise.resolve(),
-      this.notifications.rescheduleRequested(session.psychologist_id, session.patient.full_name, session.session_date),
+      this.notifications.rescheduleRequested(session.psychologist_id, sessionId, session.patient.full_name, session.session_date),
     ]);
     results.forEach((r, i) => { if (r.status === 'rejected') console.error(`[handleManualReschedule] falha na ação ${i}:`, r.reason); });
   }
@@ -297,7 +297,7 @@ export class SessionActionService {
 
     await Promise.allSettled([
       psychEmail ? sendPsychologistRescheduleNotificationEmail({ psychologistName: psychName, psychologistEmail: psychEmail, patientName: session.patient.full_name, sessionDate: proposedDate }) : Promise.resolve(),
-      this.notifications.rescheduleRequested(session.psychologist_id, session.patient.full_name, proposedDate),
+      this.notifications.rescheduleRequested(session.psychologist_id, sessionId, session.patient.full_name, proposedDate),
     ]);
   }
 
