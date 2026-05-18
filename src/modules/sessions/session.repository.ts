@@ -412,7 +412,7 @@ export class SessionRepository {
     return {
       ...data,
       psychologist: psychologist as { full_name: string; phone: string | null; whatsapp_reminder_enabled: boolean } | null,
-    } as {
+    } as unknown as {
       id: string;
       session_date: string;
       psychologist_id: string;
