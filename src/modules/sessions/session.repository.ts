@@ -504,7 +504,7 @@ export class SessionRepository {
     const { data, error } = await this.supabase
       .from('session_reschedule_requests')
       .select(`
-        id, session_id, status, created_at,
+        id, session_id, status, created_at, new_session_date,
         session:sessions(session_date, patient:patients(full_name))
       `)
       .eq('psychologist_id', psychologistId)
