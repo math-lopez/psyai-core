@@ -18,6 +18,9 @@ const SESSION_DURATION_MINUTES = 60;
 const MAX_SLOTS = 10;
 const MIN_ADVANCE_MINUTES = 30; // paciente não pode escolher slot nos próximos 30min
 
+// Brasil não usa horário de verão desde 2019 — sempre UTC-3
+const BRAZIL_OFFSET_MS = 3 * 60 * 60 * 1000;
+
 export class ScheduleRepository {
   constructor(private readonly supabase: SupabaseClient) {}
 
@@ -85,26 +88,28 @@ export class ScheduleRepository {
   }
 
   computeAvailableSlots(schedule: ScheduleDay[], existingSessions: Date[], sessionId: string): AvailableSlot[] {
-    const now = new Date();
-    const minStart = addMinutes(now, MIN_ADVANCE_MINUTES);
-    const endOfWeek = getEndOfWindow();
+    const nowUTC = new Date();
+    const minStart = addMinutes(nowUTC, MIN_ADVANCE_MINUTES);
+    const endOfWindow = getEndOfWindow();
     const slots: AvailableSlot[] = [];
 
-    const day = new Date(now);
-    day.setHours(0, 0, 0, 0);
+    // Calcula o dia atual em horário de Brasília usando UTC internamente
+    const nowBRT = new Date(nowUTC.getTime() - BRAZIL_OFFSET_MS);
+    const brtDay = new Date(Date.UTC(nowBRT.getUTCFullYear(), nowBRT.getUTCMonth(), nowBRT.getUTCDate()));
 
-    while (day <= endOfWeek && slots.length < MAX_SLOTS) {
-      const daySchedule = schedule.find(s => s.day_of_week === day.getDay());
+    while (slots.length < MAX_SLOTS) {
+      const brtDayStartUTC = brtDay.getTime() + BRAZIL_OFFSET_MS;
+      if (new Date(brtDayStartUTC) > endOfWindow) break;
+
+      const daySchedule = schedule.find(s => s.day_of_week === brtDay.getUTCDay());
 
       if (daySchedule) {
         const [startH, startM] = daySchedule.start_time.split(':').map(Number);
         const [endH, endM] = daySchedule.end_time.split(':').map(Number);
 
-        let slotStart = new Date(day);
-        slotStart.setHours(startH, startM, 0, 0);
-
-        const dayEnd = new Date(day);
-        dayEnd.setHours(endH, endM, 0, 0);
+        // Converte horários BRT para UTC somando o offset
+        let slotStart = new Date(brtDayStartUTC + startH * 3_600_000 + startM * 60_000);
+        const dayEnd  = new Date(brtDayStartUTC + endH   * 3_600_000 + endM   * 60_000);
 
         while (slots.length < MAX_SLOTS) {
           const slotEnd = addMinutes(slotStart, SESSION_DURATION_MINUTES);
@@ -117,8 +122,10 @@ export class ScheduleRepository {
             });
 
             if (!hasConflict) {
-              const label = format(slotStart, "EEE, dd/MM 'às' HH:mm", { locale: ptBR });
-              const compact = format(slotStart, "yyyyMMdd'T'HHmm");
+              // Label e compact em horário de Brasília
+              const slotBRT = new Date(slotStart.getTime() - BRAZIL_OFFSET_MS);
+              const label   = format(slotBRT, "EEE, dd/MM 'às' HH:mm", { locale: ptBR });
+              const compact = format(slotBRT, "yyyyMMdd'T'HHmm");
               slots.push({ datetime: slotStart.toISOString(), label, id: `slot_${compact}_${sessionId}` });
             }
           }
@@ -127,7 +134,7 @@ export class ScheduleRepository {
         }
       }
 
-      day.setDate(day.getDate() + 1);
+      brtDay.setUTCDate(brtDay.getUTCDate() + 1);
     }
 
     return slots;
@@ -149,11 +156,11 @@ export function parseSlotRowId(rowId: string): { compactDate: string; sessionId:
 }
 
 export function compactDateToISO(compact: string): string {
-  // "20260515T0900" → "2026-05-15T09:00:00.000Z"
-  const year  = compact.slice(0, 4);
-  const month = compact.slice(4, 6);
-  const day   = compact.slice(6, 8);
-  const hour  = compact.slice(9, 11);
-  const min   = compact.slice(11, 13);
-  return `${year}-${month}-${day}T${hour}:${min}:00.000Z`;
+  // "20260519T0800" = 08:00 BRT → converte para UTC somando 3h
+  const year  = parseInt(compact.slice(0, 4));
+  const month = parseInt(compact.slice(4, 6));
+  const day   = parseInt(compact.slice(6, 8));
+  const hour  = parseInt(compact.slice(9, 11));
+  const min   = parseInt(compact.slice(11, 13));
+  return new Date(Date.UTC(year, month - 1, day, hour + 3, min, 0)).toISOString();
 }
