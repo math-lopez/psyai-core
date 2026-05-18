@@ -1,11 +1,10 @@
 import re
-import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
 from typing import List
 
 # ---------------------------------------------------------------------------
-# Vocabulário clínico — cada padrão tem termos fortes e fracos
-# Forte: basta 1 ocorrência com contexto. Fraco: precisa de 2+ ocorrências.
+# Vocabulário clínico — cada padrão tem termos fortes e fracos.
+# Forte: 1 ocorrência não-negada basta.
+# Fraco:  2+ termos distintos OU 3+ ocorrências totais, todos não-negados.
 # ---------------------------------------------------------------------------
 _DOMAIN_PATTERNS: dict[str, dict] = {
     "Ansiedade": {
@@ -119,7 +118,7 @@ _STOPWORDS = [
     "nem", "suas", "meu", "às", "minha", "têm", "numa", "pelos", "elas", "havia",
     "não", "sim", "então", "assim", "aqui", "ali", "lá", "tudo", "todos", "todo",
     "toda", "todas", "outro", "outra", "outros", "nada", "cada", "tanto",
-    # Meta-linguagem clínica (não são temas, são descritores)
+    # Meta-linguagem clínica (descritores, não temas)
     "sessão", "paciente", "psicólogo", "psicoterapeuta", "terapeuta",
     "terapia", "psicoterapia", "atendimento", "consulta", "relato", "durante",
     "disse", "relatou", "referiu", "apresentou", "demonstrou", "trouxe",
@@ -127,7 +126,7 @@ _STOPWORDS = [
     "hoje", "semana", "mês", "ano", "dia", "vez",
 ]
 
-# Palavras de negação — se aparecem junto de um termo fraco, descartam o padrão
+# Padrões de negação: checados nos `window` caracteres ANTES da palavra-chave
 _NEGATION_BEFORE = [
     r"\bnão\b", r"\bsem\b", r"\bnega\b", r"\bnegou\b",
     r"\bausência\s+de\b", r"\bdescarta\b", r"\bafasta\b",
@@ -138,13 +137,19 @@ def _count_keyword_occurrences(text_lower: str, keywords: List[str]) -> int:
     return sum(text_lower.count(kw) for kw in keywords)
 
 
-def _has_negation_before(text_lower: str, keyword: str, window: int = 40) -> bool:
-    """Verifica se há negação nas `window` chars antes do keyword."""
+def _has_positive_occurrence(text_lower: str, keyword: str, window: int = 40) -> bool:
+    """Retorna True se keyword aparece pelo menos uma vez SEM negação antes dela.
+
+    Correção em relação à versão anterior: a função antiga (_has_negation_before)
+    retornava True se QUALQUER ocorrência fosse negada, mascarando ocorrências
+    afirmativas do mesmo termo no mesmo texto.  Esta versão percorre todas as
+    ocorrências e retorna True assim que encontra uma não-negada.
+    """
     idx = text_lower.find(keyword)
     while idx != -1:
         context_before = text_lower[max(0, idx - window): idx]
-        if any(re.search(p, context_before) for p in _NEGATION_BEFORE):
-            return True
+        if not any(re.search(p, context_before) for p in _NEGATION_BEFORE):
+            return True  # pelo menos uma ocorrência afirmativa → suficiente
         idx = text_lower.find(keyword, idx + 1)
     return False
 
@@ -154,22 +159,19 @@ def extract_patterns(text: str) -> List[str]:
     found: List[str] = []
 
     for pattern_name, config in _DOMAIN_PATTERNS.items():
-        strong_hits = [kw for kw in config["strong"] if kw in text_lower]
-        weak_hits = [kw for kw in config["weak"] if kw in text_lower]
-
         detected = False
 
-        # Termo forte: 1 ocorrência basta, mas não pode estar negada
-        for kw in strong_hits:
-            if not _has_negation_before(text_lower, kw):
+        # Termo forte: 1 ocorrência não-negada basta
+        for kw in config["strong"]:
+            if kw in text_lower and _has_positive_occurrence(text_lower, kw):
                 detected = True
                 break
 
-        # Termo fraco: precisa de 2+ ocorrências distintas sem negação
-        if not detected and weak_hits:
+        # Termo fraco: 2+ termos distintos não-negados OU 3+ ocorrências totais
+        if not detected:
             valid_weak = [
-                kw for kw in weak_hits
-                if not _has_negation_before(text_lower, kw)
+                kw for kw in config["weak"]
+                if kw in text_lower and _has_positive_occurrence(text_lower, kw)
             ]
             total_occurrences = _count_keyword_occurrences(text_lower, valid_weak)
             if len(valid_weak) >= 2 or total_occurrences >= 3:

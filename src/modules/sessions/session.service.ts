@@ -3,6 +3,8 @@ import { SessionRepository } from './session.repository';
 import { CreateSessionInput, CreateRecurrentSessionInput, UpdateSessionInput } from './session.types';
 import { PLAN_LIMITS, SubscriptionTier } from '../../config/plans';
 import { resolveSubscriptionTier } from '../../utils/subscription';
+import { sendSessionCancelledEmail } from '../../services/emailService';
+import { sendWhatsAppSessionCancelled } from '../../services/whatsappService';
 
 function makeHttpError(statusCode: number, message: string) {
   const err = new Error(message) as Error & { statusCode?: number };
@@ -127,7 +129,27 @@ export class SessionService {
     if (!existing) {
       throw makeHttpError(404, 'Sessão não encontrada');
     }
+
     await this.repository.update(id, psychologistId, { status: 'cancelled', processing_status: 'cancelled' as any });
+
+    const [patient, psychologistName] = await Promise.all([
+      this.repository.findPatientById(existing.patient_id),
+      this.repository.findPsychologistNameById(psychologistId),
+    ]);
+
+    if (patient && psychologistName) {
+      const notifParams = {
+        patientName: patient.full_name,
+        psychologistName,
+        sessionDate: existing.session_date,
+      };
+
+      await Promise.allSettled([
+        patient.email ? sendSessionCancelledEmail({ ...notifParams, patientEmail: patient.email }) : Promise.resolve(),
+        patient.phone ? sendWhatsAppSessionCancelled({ ...notifParams, patientPhone: patient.phone }) : Promise.resolve(),
+      ]);
+    }
+
     return { success: true };
   }
 
@@ -163,7 +185,7 @@ export class SessionService {
         ...baseFields,
         session_date: currentDate.toISOString(),
         psychologist_id: psychologistId,
-        processing_status: 'draft',
+        processing_status: 'appointment',
       });
       currentDate = new Date(currentDate.getTime() + 7 * 24 * 60 * 60 * 1000);
     }
@@ -230,6 +252,21 @@ export class SessionService {
     return { success: true };
   }
 
+  async startSession(id: string, psychologistId: string) {
+    const session = await this.repository.findRawByIdAndPsychologist(id, psychologistId);
+
+    if (!session) {
+      throw makeHttpError(404, 'Sessão não encontrada');
+    }
+
+    if (session.processing_status !== 'appointment') {
+      return { success: true, processing_status: session.processing_status };
+    }
+
+    await this.repository.update(id, psychologistId, { processing_status: 'draft' });
+    return { success: true, processing_status: 'draft' };
+  }
+
   async finishSession(id: string, psychologistId: string, userToken: string, clinicId?: string) {
     const session = await this.repository.findRawByIdAndPsychologist(id, psychologistId);
 
@@ -265,22 +302,37 @@ export class SessionService {
   }
 
   async processAudio(sessionId: string, psychologistId: string, userToken: string) {
-  const session = await this.repository.findRawByIdAndPsychologist(sessionId, psychologistId);
+    const session = await this.repository.findRawByIdAndPsychologist(sessionId, psychologistId);
 
-  if (!session) {
-    throw makeHttpError(404, 'Sessão não encontrada');
+    if (!session) {
+      throw makeHttpError(404, 'Sessão não encontrada');
+    }
+
+    const tier = (await this.repository.getSubscriptionTier(psychologistId)) as SubscriptionTier;
+    const safeTier = PLAN_LIMITS[tier] ? tier : 'free';
+    const limit = PLAN_LIMITS[safeTier].maxTranscriptionsPerMonth;
+
+    if (limit !== Infinity) {
+      const used = await this.repository.countTranscriptionsThisMonth(psychologistId);
+      if (used >= limit) {
+        throw makeHttpError(
+          403,
+          `Limite de transcrições atingido! Seu plano ${PLAN_LIMITS[safeTier].name} permite ${limit} transcrições por mês. Faça upgrade para continuar.`
+        );
+      }
+    }
+
+    const { error } = await this.app.supabase.functions.invoke('process-session-audio', {
+      body: { sessionId },
+      headers: {
+        Authorization: `Bearer ${userToken}`,
+      },
+    });
+
+    if (error) {
+      throw makeHttpError(500, 'Erro ao solicitar processamento do áudio');
+    }
+
+    return { success: true };
   }
-
-  const { error } = await this.app.supabase.functions.invoke('process-session-audio', {
-    body: { sessionId },
-    headers: {
-      Authorization: `Bearer ${userToken}`,
-    },
-  });
-
-  if (error) {
-    throw makeHttpError(500, 'Erro ao solicitar processamento do áudio');
-  }
-
-  return { success: true };
-}}
+}

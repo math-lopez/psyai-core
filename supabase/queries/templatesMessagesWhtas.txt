@@ -1,0 +1,32 @@
+Templates WhatsApp — lista final
+1. psiai_lembrete_com_acoes — Categoria: Utility
+
+
+Olá, {{1}}! Sua sessão com {{2}} está agendada para {{3}} às {{4}}. Como deseja proceder?
+Botões (Quick Reply):
+
+Botão 0: Confirmar ✓
+Botão 1: Informar Ausência
+Botão 2: Reagendar
+2. psiai_presenca_confirmada — Categoria: Utility
+
+
+Olá, {{1}}! Sua presença na sessão com {{2}} foi confirmada. Até breve! 🗓️
+3. psiai_ausencia_registrada — Categoria: Utility
+
+
+Olá, {{1}}! Sua ausência foi registrada e {{2}} foi notificado(a). Entre em contato para reagendar quando quiser.
+4. psiai_reagendamento_solicitado — Categoria: Utility
+
+
+Olá, {{1}}! Sua solicitação de reagendamento foi recebida. {{2}} entrará em contato para definir um novo horário.
+(só enviado no fluxo manual)
+
+5. psiai_reagendamento_aprovado — Categoria: Utility
+
+
+Olá, {{1}}! Temos uma boa notícia. {{2}} confirmou sua nova sessão para {{3}} no horário das {{4}}. Até lá! 📅
+6. psiai_reagendamento_recusado — Categoria: Utility
+
+
+Olá, {{1}}! Infelizmente {{2}} não pôde aprovar o reagendamento. Entre em contato diretamente para verificar outro horário.

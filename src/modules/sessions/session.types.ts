@@ -1,4 +1,5 @@
 export type ProcessingStatus =
+  | 'appointment'
   | 'draft'
   | 'queued'
   | 'processing'

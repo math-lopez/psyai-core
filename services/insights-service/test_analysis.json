@@ -1,0 +1,15 @@
+{
+  "patientId": "p-teste-001",
+  "psychologistId": "psi-teste-001",
+  "patient": {
+    "id": "p-teste-001",
+    "name": "Paciente Teste"
+  },
+  "sessions": [
+    {
+      "id": "sessao-003",
+      "sessionDate": "2025-04-15",
+      "sessionSummaryManual": "O paciente demonstra discurso de autonomia e forte desejo de conduzir a própria vida, apresentando-se decidido quanto a mudanças pessoais. No entanto, observa-se um padrão recorrente de autossabotagem, com dificuldades em sustentar decisões e manter estabilidade emocional, alternando entre momentos de determinação e desorganização interna. Evidencia-se fragilidade no equilíbrio psíquico, possivelmente influenciada por uma dinâmica familiar marcada por confusão, limites difusos e relações pouco estruturadas, o que pode impactar na construção de identidade, segurança emocional e capacidade de autorregulação. Faz-se necessária a continuidade do acompanhamento terapêutico, com foco na identificação dos gatilhos de autossabotagem, fortalecimento de recursos internos, desenvolvimento de consistência nas escolhas e elaboração das influências familiares, visando maior estabilidade e autonomia funcional."
+    }
+  ]
+}
