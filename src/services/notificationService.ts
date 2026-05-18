@@ -62,7 +62,7 @@ export class NotificationService {
       event_type: 'reschedule_requested',
       title: 'Pedido de reagendamento',
       message: `${patientName} solicitou o reagendamento da sessão de ${formatDate(sessionDate)}.`,
-      href: `/sessoes/${sessionId}`,
+      href: `/sessoes?tab=reagendamentos`,
       metadata: { session_id: sessionId },
     });
   }
