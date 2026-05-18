@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyPluginAsync } from "fastify";
 import { FinancialService } from "./financial.service";
-import { asaasStatusToInternal } from "../../services/asaasService";
+import { asaasStatusToInternal, getAsaasPayment } from "../../services/asaasService";
 
 // Rotas públicas do financeiro — sem autenticação
 const financialPublicRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
@@ -27,7 +27,9 @@ const financialPublicRoutes: FastifyPluginAsync = async (fastify: FastifyInstanc
   fastify.post("/v1/webhooks/asaas", async (request, reply) => {
     const token = (request.headers['asaas-access-token'] ?? request.headers['authorization']) as string;
     const expectedToken = process.env.ASAAS_WEBHOOK_TOKEN;
-    if (expectedToken && token !== expectedToken) {
+
+    // Fail closed: rejeita se token não configurado ou não bater
+    if (!expectedToken || token !== expectedToken) {
       return reply.status(401).send({ message: 'Token inválido' });
     }
 
@@ -41,16 +43,31 @@ const financialPublicRoutes: FastifyPluginAsync = async (fastify: FastifyInstanc
     // Processa em background após resposta enviada
     if (!payment?.id || !event) return;
 
-    const internalStatus = asaasStatusToInternal(payment.status);
-
     if (!['RECEIVED', 'CONFIRMED', 'OVERDUE', 'CANCELLED', 'DELETED'].includes(payment.status)) return;
 
     try {
       const charge = await service.findChargeByAsaasPaymentId(payment.id);
-      if (charge) {
-        await service.updateStatusById(charge.id, internalStatus);
-        fastify.log.info(`[asaas webhook] Cobrança ${charge.id} → ${internalStatus}`);
+      if (!charge) return;
+
+      // Cross-verificação: busca o status real na API do Asaas para não confiar cegamente no webhook
+      let confirmedStatus: string;
+      try {
+        const verified = await getAsaasPayment(payment.id);
+        if (verified.status !== payment.status) {
+          fastify.log.warn(
+            { paymentId: payment.id, webhookStatus: payment.status, apiStatus: verified.status },
+            '[asaas webhook] divergência de status — usando status da API',
+          );
+        }
+        confirmedStatus = asaasStatusToInternal(verified.status);
+      } catch {
+        // Se a verificação falhar, usa o status do webhook como fallback
+        confirmedStatus = asaasStatusToInternal(payment.status);
+        fastify.log.warn({ paymentId: payment.id }, '[asaas webhook] falha na cross-verificação, usando status do webhook');
       }
+
+      await service.updateStatusById(charge.id, confirmedStatus);
+      fastify.log.info(`[asaas webhook] Cobrança ${charge.id} → ${confirmedStatus}`);
     } catch (err) {
       fastify.log.error({ err }, '[asaas webhook] Falha ao processar evento');
     }

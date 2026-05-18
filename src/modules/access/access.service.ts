@@ -97,9 +97,7 @@ export class AccessService {
     }
 
     const inviteToken = crypto.randomBytes(24).toString("hex");
-    const inviteCode = String(
-      Math.floor(100000 + Math.random() * 900000),
-    );
+    const inviteCode = String(100000 + (crypto.randomBytes(4).readUInt32BE(0) % 900000));
     const now = new Date().toISOString();
 
     const access = await this.repository.upsertInvite({

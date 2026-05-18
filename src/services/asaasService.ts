@@ -101,6 +101,12 @@ export async function cancelAsaasPayment(paymentId: string): Promise<void> {
   await asaasRequest(getMasterKey(), 'DELETE', `/payments/${paymentId}`);
 }
 
+export async function getAsaasPayment(paymentId: string): Promise<{ id: string; status: string; value: number }> {
+  return asaasRequest<{ id: string; status: string; value: number }>(
+    getMasterKey(), 'GET', `/payments/${paymentId}`,
+  );
+}
+
 // ── Transferências (repasse) ──────────────────────────────────────────────────
 
 export interface CreateTransferInput {

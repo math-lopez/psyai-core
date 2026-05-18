@@ -320,8 +320,10 @@ export async function buildApp() {
     };
 
     if (error instanceof ZodError) {
-      request.log.warn({ ...ctx, validation: error.flatten() }, "Validation error (uncaught ZodError)");
-      return reply.status(400).send({ message: "Dados invalidos", details: error.flatten() });
+      const flat = error.flatten();
+      request.log.warn({ ...ctx, validation: flat }, "Validation error (uncaught ZodError)");
+      const isDev = process.env.NODE_ENV !== "production";
+      return reply.status(400).send({ message: "Dados invalidos", ...(isDev && { details: flat }) });
     }
 
     if (error instanceof AppError) {
