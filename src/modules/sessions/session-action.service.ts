@@ -140,7 +140,9 @@ export class SessionActionService {
       return;
     }
 
-    await sendWhatsAppRescheduleSlots(fromPhone, slots, session.patient?.full_name ?? 'Paciente').catch(() => {});
+    await sendWhatsAppRescheduleSlots(fromPhone, slots, session.patient?.full_name ?? 'Paciente').catch(err => {
+      console.error('[reschedule auto] Erro ao enviar lista de slots via WhatsApp:', err?.message ?? err);
+    });
     // Patient status stays 'pending' until they select a slot
   }
 
