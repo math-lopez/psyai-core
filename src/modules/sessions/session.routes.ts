@@ -3,6 +3,7 @@ import { SessionService } from './session.service';
 import { SessionActionService } from './session-action.service';
 import { createSessionSchema, updateSessionSchema, createRecurrentSessionSchema } from './session.schemas';
 import { replyValidationError } from '../../shared/errors/validation-helper.js';
+import { ReminderService } from '../../services/reminderService.js';
 
 export default async function sessionRoutes(app: FastifyInstance) {
   const service = new SessionService(app);
@@ -10,6 +11,12 @@ export default async function sessionRoutes(app: FastifyInstance) {
 
   app.get('/v1/sessions/stats', { preHandler: [app.authenticate] }, async (request) => {
     return service.getStats(request.authUser.id);
+  });
+
+  app.post('/v1/sessions/trigger-reminders', { preHandler: [app.authenticate] }, async (request) => {
+    const reminder = new ReminderService(app.supabase, app.log);
+    const count = await reminder.sendRemindersForPsychologist(request.authUser.id);
+    return { sent: count };
   });
 
   app.get('/v1/sessions', { preHandler: [app.authenticate] }, async (request) => {
