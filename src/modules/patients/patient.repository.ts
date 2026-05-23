@@ -176,7 +176,7 @@ export class PatientRepository {
     // Delete treatment goals
     if (plans && plans.length > 0) {
       const planIds = plans.map((p: { id: string }) => p.id);
-      await this.safeDelete('treatment_goals', 'treatment_plan_id', planIds);
+      await this.safeDelete('treatment_goals', 'plan_id', planIds);
     }
 
     // Delete treatment plans

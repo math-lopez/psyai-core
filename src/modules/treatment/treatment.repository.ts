@@ -26,7 +26,7 @@ export class TreatmentRepository {
   async listPlansByPatientId(patientId: string): Promise<TreatmentPlan[]> {
     const { data, error } = await this.supabase
       .from("treatment_plans")
-      .select("*, goals:treatment_goals(*)")
+      .select("*, goals:treatment_goals!treatment_goals_plan_id_fkey(*)")
       .eq("patient_id", patientId)
       .order("created_at", { ascending: false });
 
@@ -37,7 +37,7 @@ export class TreatmentRepository {
   async getActivePlanByPatientId(patientId: string): Promise<TreatmentPlan | null> {
     const { data, error } = await this.supabase
       .from("treatment_plans")
-      .select("*, goals:treatment_goals(*)")
+      .select("*, goals:treatment_goals!treatment_goals_plan_id_fkey(*)")
       .eq("patient_id", patientId)
       .eq("status", "active")
       .maybeSingle();
@@ -49,7 +49,7 @@ export class TreatmentRepository {
   async getPlanById(planId: string): Promise<TreatmentPlan | null> {
     const { data, error } = await this.supabase
       .from("treatment_plans")
-      .select("*, goals:treatment_goals(*)")
+      .select("*, goals:treatment_goals!treatment_goals_plan_id_fkey(*)")
       .eq("id", planId)
       .maybeSingle();
 
@@ -76,7 +76,7 @@ export class TreatmentRepository {
     const { data, error } = await this.supabase
       .from("treatment_plans")
       .insert([payload])
-      .select("*, goals:treatment_goals(*)")
+      .select("*, goals:treatment_goals!treatment_goals_plan_id_fkey(*)")
       .single();
 
     if (error) throw error;
@@ -88,7 +88,7 @@ export class TreatmentRepository {
       .from("treatment_plans")
       .update(updates)
       .eq("id", planId)
-      .select("*, goals:treatment_goals(*)")
+      .select("*, goals:treatment_goals!treatment_goals_plan_id_fkey(*)")
       .single();
 
     if (error) throw error;
