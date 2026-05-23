@@ -18,8 +18,8 @@ Todos os templates precisam ser criados e aprovados no **Meta Business Manager**
 | 4 | `psiai_reagendamento_solicitado` | ✅ Aprovado | `sendWhatsAppPatientRescheduleRequested()` | Solicitação de reagendamento recebida |
 | 5 | `psiai_reagendamento_aprovado` | ✅ Aprovado | `sendWhatsAppPatientRescheduleApproved()` | Reagendamento aprovado pelo psicólogo |
 | 6 | `psiai_reagendamento_recusado` | ✅ Aprovado | `sendWhatsAppPatientRescheduleRejected()` | Reagendamento recusado pelo psicólogo |
-| 7 | `psiai_sessao_iniciada` | ⏳ Pendente | `sendWhatsAppSessionStarted()` | Notificação de sessão iniciada com link |
-| 8 | `psiai_sessao_cancelada` | ⏳ Pendente | `sendWhatsAppSessionCancelled()` | Aviso de sessão cancelada pelo psicólogo |
+| 7 | `psiai_sessao_iniciada` | ✅ Aprovado | `sendWhatsAppSessionStarted()` | Notificação de sessão iniciada com link |
+| 8 | `psiai_sessao_cancelada` | ✅ Aprovado | `sendWhatsAppSessionCancelled()` | Aviso de sessão cancelada pelo psicólogo |
 
 ---
 

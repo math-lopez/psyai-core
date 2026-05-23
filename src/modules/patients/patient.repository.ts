@@ -1,5 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { CreatePatientInput, UpdatePatientInput } from './patient.types';
+import { CreateGuardianInput, CreatePatientInput, UpdatePatientInput } from './patient.types';
 
 export class PatientRepository {
   constructor(private readonly supabase: SupabaseClient) {}
@@ -7,7 +7,7 @@ export class PatientRepository {
   async listByPsychologist(psychologistId: string) {
     const { data, error } = await this.supabase
       .from('patients')
-      .select('*')
+      .select('*, guardians:patient_guardians(*)')
       .eq('psychologist_id', psychologistId)
       .order('full_name', { ascending: true });
 
@@ -18,7 +18,7 @@ export class PatientRepository {
   async findById(id: string) {
     const { data, error } = await this.supabase
       .from('patients')
-      .select('*')
+      .select('*, guardians:patient_guardians(*)')
       .eq('id', id)
       .maybeSingle();
 
@@ -29,7 +29,7 @@ export class PatientRepository {
   async findByIdAndPsychologist(id: string, psychologistId: string) {
     const { data, error } = await this.supabase
       .from('patients')
-      .select('*')
+      .select('*, guardians:patient_guardians(*)')
       .eq('id', id)
       .eq('psychologist_id', psychologistId)
       .maybeSingle();
@@ -60,27 +60,65 @@ export class PatientRepository {
   }
 
   async create(psychologistId: string, payload: CreatePatientInput) {
+    const { guardians, ...patientData } = payload;
+
     const { data, error } = await this.supabase
       .from('patients')
       .insert({
-        ...payload,
+        ...patientData,
         psychologist_id: psychologistId,
       })
       .select('*')
       .single();
 
     if (error) throw error;
-    return data;
+
+    if (guardians && guardians.length > 0) {
+      await this.replaceGuardians(data.id, guardians);
+    }
+
+    return this.findById(data.id);
   }
 
   async update(id: string, psychologistId: string, payload: UpdatePatientInput) {
+    const { guardians, ...patientData } = payload;
+
     const { data, error } = await this.supabase
       .from('patients')
-      .update(payload)
+      .update(patientData)
       .eq('id', id)
       .eq('psychologist_id', psychologistId)
       .select('*')
       .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return null;
+
+    if (guardians !== undefined) {
+      await this.replaceGuardians(id, guardians);
+    }
+
+    return this.findById(id);
+  }
+
+  async replaceGuardians(patientId: string, guardians: CreateGuardianInput[]) {
+    await this.safeDelete('patient_guardians', 'patient_id', patientId);
+
+    if (guardians.length === 0) return;
+
+    const { error } = await this.supabase
+      .from('patient_guardians')
+      .insert(guardians.map((g) => ({ ...g, patient_id: patientId })));
+
+    if (error) throw error;
+  }
+
+  async listGuardians(patientId: string) {
+    const { data, error } = await this.supabase
+      .from('patient_guardians')
+      .select('*')
+      .eq('patient_id', patientId)
+      .order('created_at', { ascending: true });
 
     if (error) throw error;
     return data;
@@ -164,6 +202,9 @@ export class PatientRepository {
 
     // Delete patient diary prompts
     await this.safeDelete('patient_log_prompts', 'patient_id', patientId);
+
+    // Delete guardians (cascade by FK, but explicit for safety)
+    await this.safeDelete('patient_guardians', 'patient_id', patientId);
 
     // Finally delete the patient (patient_ai_analyses table does not exist in DB — removed)
     await this.safeDelete('patients', 'id', patientId);
